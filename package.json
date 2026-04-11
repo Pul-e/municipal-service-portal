@@ -1,0 +1,24 @@
+{
+  "name": "municipal-service-portal",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+  "test": "jest",
+  "test:coverage": "jest --coverage"
+},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Pul-e/municipal-service-portal.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Pul-e/municipal-service-portal/issues"
+  },
+  "homepage": "https://github.com/Pul-e/municipal-service-portal#readme",
+  "description": "",
+  "devDependencies": {
+    "jest": "^30.3.0"
+  }
+}
