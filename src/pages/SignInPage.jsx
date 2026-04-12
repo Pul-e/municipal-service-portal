@@ -1,21 +1,36 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 function SignInPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const defaultRole = searchParams.get('role') || 'resident';
-  
+
   const [role, setRole] = useState(defaultRole);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Connect to Supabase Auth in Sprint 2
-    console.log('Sign in:', { role, email });
-    
-    // Demo navigation - will be replaced with actual auth
+    setLoading(true);
+    setError('');
+
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    setLoading(false);
+
+    if (authError) {
+      setError(authError.message);
+      return;
+    }
+
+    // Navigate to the right dashboard based on selected role
     switch (role) {
       case 'resident':
         navigate('/resident/dashboard');
@@ -41,25 +56,32 @@ function SignInPage() {
       <div className="signin-container">
         {/* Role Selector */}
         <div className="role-selector">
-          <button 
+          <button
             className={`role-option ${role === 'resident' ? 'active' : ''}`}
             onClick={() => setRole('resident')}
           >
             🏠 Resident
           </button>
-          <button 
+          <button
             className={`role-option ${role === 'worker' ? 'active' : ''}`}
             onClick={() => setRole('worker')}
           >
             🔧 Worker
           </button>
-          <button 
+          <button
             className={`role-option ${role === 'admin' ? 'active' : ''}`}
             onClick={() => setRole('admin')}
           >
             📊 Admin
           </button>
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div style={{ background: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
+            {error}
+          </div>
+        )}
 
         {/* Sign In Form */}
         <form onSubmit={handleSubmit} className="signin-form">
@@ -87,19 +109,14 @@ function SignInPage() {
             />
           </div>
 
-          <button type="submit" className="submit-btn">
-            Sign In as {role.charAt(0).toUpperCase() + role.slice(1)}
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? 'Signing in...' : `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`}
           </button>
         </form>
 
         <div className="signin-footer">
           <p>Don't have an account? <Link to="/register">Register here</Link></p>
           <p><Link to="/">← Back to public dashboard</Link></p>
-        </div>
-
-        {/* Demo Notice */}
-        <div className="demo-notice">
-          <p>🔧 Sprint 1 Demo: Click Sign In to view role-specific dashboard (no actual auth yet)</p>
         </div>
       </div>
     </article>

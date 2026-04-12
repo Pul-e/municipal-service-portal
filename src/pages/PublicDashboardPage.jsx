@@ -1,6 +1,50 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 import MapPlaceholder from '../components/MapPlaceholder';
 
+const CATEGORY_ICONS = {
+  pothole: '🕳️',
+  'burst-pipe': '💧',
+  'power-outage': '⚡',
+  'illegal-dumping': '🗑️',
+  'street-light': '💡',
+  other: '📋',
+};
+
+function timeAgo(dateStr) {
+  const seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
+}
+
 function PublicDashboardPage() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchRequests() {
+      const { data, error } = await supabase
+        .from('service_requests')
+        .select('id, category, location, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching requests:', error.message);
+      } else {
+        setRequests(data || []);
+      }
+      setLoading(false);
+    }
+
+    fetchRequests();
+  }, []);
+
+  const openCount = requests.filter(r => r.status !== 'Resolved').length;
+  const resolvedCount = requests.filter(r => r.status === 'Resolved').length;
+
   return (
     <article className="page-container public-dashboard">
       <header className="dashboard-header">
@@ -8,14 +52,14 @@ function PublicDashboardPage() {
         <p className="tagline">Report service issues in your ward. Track resolutions. Hold municipalities accountable.</p>
       </header>
 
-      {/* Hero Stats - Compact */}
+      {/* Hero Stats - pulled from Supabase */}
       <section className="stats-compact" aria-label="Service delivery statistics">
         <div className="stat-item">
-          <span className="stat-value">147</span>
+          <span className="stat-value">{loading ? '...' : openCount}</span>
           <span className="stat-label">Open Requests</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">89</span>
+          <span className="stat-value">{loading ? '...' : resolvedCount}</span>
           <span className="stat-label">Resolved This Month</span>
         </div>
         <div className="stat-item">
@@ -28,7 +72,6 @@ function PublicDashboardPage() {
       <section className="map-section-large" aria-label="Ward boundary map">
         <h2>Service Delivery Map</h2>
         <p className="map-context">City of Johannesburg • Ward 58</p>
-        
         <figure className="large-map-container">
           <MapPlaceholder />
           <figcaption className="map-data-source">
@@ -37,31 +80,30 @@ function PublicDashboardPage() {
         </figure>
       </section>
 
-      {/* Recent Activity Feed */}
+      {/* Recent Activity Feed - live from Supabase */}
       <section className="recent-activity-compact" aria-label="Recent reports">
         <h3>Recent Reports in Your Area</h3>
-        <ul className="activity-list-compact">
-          <li>
-            <span className="category-icon">🕳️</span>
-            <span className="activity-detail">Pothole reported on Jorissen Street, Braamfontein</span>
-            <span className="activity-time">10 minutes ago</span>
-          </li>
-          <li>
-            <span className="category-icon">💧</span>
-            <span className="activity-detail">Burst pipe at Vilakazi Street, Soweto</span>
-            <span className="activity-time">25 minutes ago</span>
-          </li>
-          <li>
-            <span className="category-icon">⚡</span>
-            <span className="activity-detail">Power outage on 2nd Avenue, Alexandra</span>
-            <span className="activity-time">1 hour ago</span>
-          </li>
-          <li>
-            <span className="category-icon">🗑️</span>
-            <span className="activity-detail">Illegal dumping on Ingonyama Road, Diepsloot</span>
-            <span className="activity-time">2 hours ago</span>
-          </li>
-        </ul>
+
+        {loading ? (
+          <p style={{ color: '#888', padding: '1rem 0' }}>Loading reports...</p>
+        ) : requests.length === 0 ? (
+          <p style={{ color: '#888', padding: '1rem 0' }}>No reports yet. Be the first to report an issue.</p>
+        ) : (
+          <ul className="activity-list-compact">
+            {requests.map((req) => (
+              <li key={req.id}>
+                <span className="category-icon">
+                  {CATEGORY_ICONS[req.category] || '📋'}
+                </span>
+                <span className="activity-detail">
+                  {req.category} reported — {req.location || 'Location not specified'}
+                </span>
+                <span className="activity-time">{timeAgo(req.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <p className="signin-prompt">
           <a href="/signin" className="text-link">Sign in</a> to report an issue or track your requests.
         </p>

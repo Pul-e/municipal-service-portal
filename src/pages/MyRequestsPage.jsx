@@ -1,36 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 import StatusBadge from '../components/StatusBadge';
 
+function timeAgo(dateStr) {
+  const seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
+}
+
 function MyRequestsPage() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
 
-  // Sample data - hardcoded for Sprint 1
-  const requests = [
-    {
-      id: 1,
-      category: 'Pothole',
-      location: 'Main Road, Braamfontein',
-      status: 'Acknowledged',
-      date: '2026-04-09',
-      dateDisplay: '2 days ago',
-    },
-    {
-      id: 2,
-      category: 'Burst Pipe',
-      location: 'Park Street, Soweto',
-      status: 'In Progress',
-      date: '2026-04-06',
-      dateDisplay: '5 days ago',
-    },
-    {
-      id: 3,
-      category: 'Illegal Dumping',
-      location: 'Station Road, Alexandra',
-      status: 'Resolved',
-      date: '2026-04-01',
-      dateDisplay: '10 days ago',
-    },
-  ];
+  useEffect(() => {
+    async function fetchMyRequests() {
+      // Get the currently logged-in user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('service_requests')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching requests:', error.message);
+      } else {
+        setRequests(data || []);
+      }
+      setLoading(false);
+    }
+
+    fetchMyRequests();
+  }, []);
 
   const filteredRequests = requests.filter((req) => {
     if (activeFilter === 'all') return true;
@@ -91,12 +101,14 @@ function MyRequestsPage() {
       </nav>
 
       {/* Requests List */}
-      <section 
+      <section
         id="requests-panel"
         role="tabpanel"
         aria-label={`${activeFilter} service requests`}
       >
-        {filteredRequests.length > 0 ? (
+        {loading ? (
+          <p style={{ color: '#888', padding: '2rem 0', textAlign: 'center' }}>Loading your requests...</p>
+        ) : filteredRequests.length > 0 ? (
           <ul className="requests-list" aria-label="Your service requests">
             {filteredRequests.map((request) => (
               <li key={request.id}>
@@ -105,16 +117,16 @@ function MyRequestsPage() {
                     <h2 className="request-category">{request.category}</h2>
                     <StatusBadge status={request.status} />
                   </header>
-                  
+
                   <address className="request-location">
-                    📍 {request.location}
+                    📍 {request.location || 'Location not specified'}
                   </address>
-                  
+
                   <footer className="request-footer">
-                    <time dateTime={request.date} className="request-date">
-                      📅 Reported {request.dateDisplay}
+                    <time dateTime={request.created_at} className="request-date">
+                      📅 Reported {timeAgo(request.created_at)}
                     </time>
-                    <button 
+                    <button
                       className="view-details-btn"
                       aria-label={`View details for ${request.category} at ${request.location}`}
                     >
