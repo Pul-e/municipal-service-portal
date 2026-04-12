@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import MapPlaceholder from '../components/MapPlaceholder';
+import InteractiveMap from '../components/InteractiveMap';
 
 const CATEGORY_ICONS = {
   pothole: '🕳️',
@@ -22,6 +22,7 @@ function timeAgo(dateStr) {
 function PublicDashboardPage() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedLocation, setSelectedLocation] = useState(null);
 
   useEffect(() => {
     async function fetchRequests() {
@@ -42,8 +43,16 @@ function PublicDashboardPage() {
     fetchRequests();
   }, []);
 
+  // For now, use hardcoded stats until you have the actual data
   const openCount = requests.filter(r => r.status !== 'Resolved').length;
   const resolvedCount = requests.filter(r => r.status === 'Resolved').length;
+
+  // Handle map clicks (optional - for public dashboard, maybe just show info)
+  const handleLocationSelect = (location) => {
+    setSelectedLocation(location);
+    console.log('User clicked on map:', location);
+    // You could show a popup or filter requests near this location
+  };
 
   return (
     <article className="page-container public-dashboard">
@@ -68,16 +77,23 @@ function PublicDashboardPage() {
         </div>
       </section>
 
-      {/* Large Map Section */}
+      {/* Interactive Map Section - REPLACED MapPlaceholder */}
       <section className="map-section-large" aria-label="Ward boundary map">
         <h2>Service Delivery Map</h2>
         <p className="map-context">City of Johannesburg • Ward 58</p>
         <figure className="large-map-container">
-          <MapPlaceholder />
+          <InteractiveMap onLocationSelect={handleLocationSelect} />
           <figcaption className="map-data-source">
             <strong>Data Source:</strong> South African Municipal Demarcation Board (MDB) 2024
+            <br />
+            <span style={{ fontSize: '12px' }}>📍 Click anywhere on the map to explore your area</span>
           </figcaption>
         </figure>
+        {selectedLocation && (
+          <div className="selected-location-info" style={{ marginTop: '8px', fontSize: '12px', textAlign: 'center', color: '#666' }}>
+            Selected: {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
+          </div>
+        )}
       </section>
 
       {/* Recent Activity Feed - live from Supabase */}
