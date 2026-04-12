@@ -2,66 +2,69 @@ import MapPlaceholder from '../components/MapPlaceholder';
 
 function PublicDashboardPage() {
   return (
-    <article className="page-container">
-      <header>
-        <h1>Service Delivery Dashboard</h1>
-        <p className="public-note" role="doc-subtitle">Public View • No Login Required</p>
+    <article className="page-container public-dashboard">
+      <header className="dashboard-header">
+        <h1>🏛️ Municipal Connect</h1>
+        <p className="tagline">Report service issues in your ward. Track resolutions. Hold municipalities accountable.</p>
       </header>
 
-      {/* Stats Section */}
-      <section className="stats-grid" aria-label="Service delivery statistics">
-        <div className="stat-card open" role="status">
-          <h2>Open Requests</h2>
-          <div className="stat-number" aria-label="147 open requests">147</div>
+      {/* Hero Stats - Compact */}
+      <section className="stats-compact" aria-label="Service delivery statistics">
+        <div className="stat-item">
+          <span className="stat-value">147</span>
+          <span className="stat-label">Open Requests</span>
         </div>
-        <div className="stat-card resolved" role="status">
-          <h2>Resolved This Month</h2>
-          <div className="stat-number" aria-label="89 requests resolved">89</div>
+        <div className="stat-item">
+          <span className="stat-value">89</span>
+          <span className="stat-label">Resolved This Month</span>
         </div>
-        <div className="stat-card time" role="status">
-          <h2>Avg Response Time</h2>
-          <div className="stat-number" aria-label="3.2 days average">3.2 days</div>
+        <div className="stat-item">
+          <span className="stat-value">3.2d</span>
+          <span className="stat-label">Avg Response</span>
         </div>
       </section>
 
-      {/* Map Section */}
-      <section className="map-section" aria-label="Ward boundary map">
-        <h2>Ward Boundary Map</h2>
-        <figure>
+      {/* Large Map Section */}
+      <section className="map-section-large" aria-label="Ward boundary map">
+        <h2>Service Delivery Map</h2>
+        <p className="map-context">City of Johannesburg • Ward 58</p>
+        
+        <figure className="large-map-container">
           <MapPlaceholder />
           <figcaption className="map-data-source">
-            🗺️ Ward boundary data sourced from: South African Municipal Demarcation Board (MDB) 2024
-            <br />
-            📍 Currently viewing: City of Johannesburg Metropolitan Municipality • Ward 58
+            <strong>Data Source:</strong> South African Municipal Demarcation Board (MDB) 2024
           </figcaption>
         </figure>
       </section>
 
-      {/* Activity Feed */}
-      <section className="recent-activity" aria-label="Recent service reports">
-        <h2>Recent Reports</h2>
-        <ul className="activity-list">
-          <li className="activity-item">
-            <span className="category pothole">🕳️ Pothole</span>
-            <span className="location">Braamfontein, Jorissen Street</span>
-            <time className="time" dateTime="2026-04-11T10:00">10 minutes ago</time>
+      {/* Recent Activity Feed */}
+      <section className="recent-activity-compact" aria-label="Recent reports">
+        <h3>Recent Reports in Your Area</h3>
+        <ul className="activity-list-compact">
+          <li>
+            <span className="category-icon">🕳️</span>
+            <span className="activity-detail">Pothole reported on Jorissen Street, Braamfontein</span>
+            <span className="activity-time">10 minutes ago</span>
           </li>
-          <li className="activity-item">
-            <span className="category water">💧 Burst Pipe</span>
-            <span className="location">Soweto, Vilakazi Street</span>
-            <time className="time" dateTime="2026-04-11T09:35">25 minutes ago</time>
+          <li>
+            <span className="category-icon">💧</span>
+            <span className="activity-detail">Burst pipe at Vilakazi Street, Soweto</span>
+            <span className="activity-time">25 minutes ago</span>
           </li>
-          <li className="activity-item">
-            <span className="category power">⚡ Power Outage</span>
-            <span className="location">Alexandra, 2nd Avenue</span>
-            <time className="time" dateTime="2026-04-11T09:00">1 hour ago</time>
+          <li>
+            <span className="category-icon">⚡</span>
+            <span className="activity-detail">Power outage on 2nd Avenue, Alexandra</span>
+            <span className="activity-time">1 hour ago</span>
           </li>
-          <li className="activity-item">
-            <span className="category waste">🗑️ Illegal Dumping</span>
-            <span className="location">Diepsloot, Ingonyama Road</span>
-            <time className="time" dateTime="2026-04-11T08:00">2 hours ago</time>
+          <li>
+            <span className="category-icon">🗑️</span>
+            <span className="activity-detail">Illegal dumping on Ingonyama Road, Diepsloot</span>
+            <span className="activity-time">2 hours ago</span>
           </li>
         </ul>
+        <p className="signin-prompt">
+          <a href="/signin" className="text-link">Sign in</a> to report an issue or track your requests.
+        </p>
       </section>
     </article>
   );

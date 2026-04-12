@@ -1,12 +1,35 @@
-/* Navigation List Styles */
-.nav-links ul {
-  display: flex;
-  gap: 1.5rem;
-  list-style: none;
+/* ============================================
+   BASE STYLES
+   ============================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.nav-links li {
-  margin: 0;
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+.navbar {
+  background-color: #1a4d2e;
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .nav-brand h1 {
@@ -19,7 +42,494 @@
   text-decoration: none;
 }
 
-/* Filter Tabs as List */
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.nav-links ul {
+  display: flex;
+  gap: 1.5rem;
+  list-style: none;
+}
+
+.nav-links li {
+  margin: 0;
+}
+
+.nav-links a {
+  color: white;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: opacity 0.2s;
+}
+
+.nav-links a:hover {
+  opacity: 0.8;
+}
+
+.signin-link {
+  background-color: #ffd700;
+  color: #1a4d2e !important;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.signin-link:hover {
+  background-color: #ffed4a;
+}
+
+.auth-btn {
+  background-color: #ffd700;
+  color: #1a4d2e;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.auth-btn:hover {
+  background-color: #ffed4a;
+}
+
+.user-role-badge {
+  background: rgba(255,255,255,0.2);
+  padding: 0.25rem 1rem;
+  border-radius: 20px;
+  margin-right: 1rem;
+}
+
+/* ============================================
+   MAIN CONTENT
+   ============================================ */
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.page-container h1 {
+  margin-bottom: 0.5rem;
+  color: #1a4d2e;
+}
+
+.page-subtitle {
+  color: #666;
+  margin-bottom: 2rem;
+  font-style: italic;
+}
+
+/* ============================================
+   PUBLIC DASHBOARD
+   ============================================ */
+.public-dashboard .dashboard-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.tagline {
+  font-size: 1.1rem;
+  color: #555;
+  max-width: 700px;
+  margin: 0.5rem auto 0;
+}
+
+.stats-compact {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  background: white;
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1a4d2e;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Large Map Section */
+.map-section-large {
+  margin-bottom: 2rem;
+}
+
+.map-section-large h2 {
+  margin-bottom: 0.25rem;
+}
+
+.map-context {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.large-map-container {
+  margin: 0;
+}
+
+.large-map-container .map-placeholder {
+  min-height: 400px;
+}
+
+/* ============================================
+   MAP PLACEHOLDER
+   ============================================ */
+.map-placeholder {
+  background: linear-gradient(135deg, #e8f4e8 0%, #d4e8d4 100%);
+  border: 2px dashed #1a4d2e;
+  border-radius: 8px;
+  padding: 2rem;
+  margin: 1rem 0;
+  text-align: center;
+  min-height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-placeholder.interactive {
+  border-color: #ffd700;
+  cursor: pointer;
+}
+
+.map-placeholder.interactive:hover {
+  background: linear-gradient(135deg, #d4e8d4 0%, #c0dcc0 100%);
+}
+
+.map-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.map-text {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #1a4d2e;
+}
+
+.map-subtext {
+  color: #666;
+  margin-top: 0.5rem;
+}
+
+.location-btn {
+  margin-top: 1rem;
+  background-color: #1a4d2e;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.map-data-source {
+  background: #f0f0f0;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 0.5rem;
+}
+
+/* ============================================
+   COMPACT RECENT ACTIVITY
+   ============================================ */
+.recent-activity-compact {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-top: 2rem;
+}
+
+.recent-activity-compact h3 {
+  margin-bottom: 1rem;
+  color: #1a4d2e;
+}
+
+.activity-list-compact {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+}
+
+.activity-list-compact li {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.activity-list-compact li:last-child {
+  border-bottom: none;
+}
+
+.category-icon {
+  font-size: 1.2rem;
+  margin-right: 0.75rem;
+  min-width: 2rem;
+  text-align: center;
+}
+
+.activity-detail {
+  flex: 1;
+  color: #333;
+}
+
+.activity-time {
+  color: #999;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.signin-prompt {
+  text-align: center;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #eee;
+  color: #666;
+}
+
+.text-link {
+  background: none;
+  border: none;
+  color: #1a4d2e;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.text-link:hover {
+  text-decoration: underline;
+}
+
+/* ============================================
+   SIGN IN PAGE
+   ============================================ */
+.signin-page .signin-container {
+  max-width: 450px;
+  margin: 0 auto;
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.role-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.role-option {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.role-option.active {
+  border-color: #1a4d2e;
+  background: #e8f4e8;
+}
+
+.signin-form {
+  margin-bottom: 1.5rem;
+}
+
+.signin-footer {
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.signin-footer a {
+  color: #1a4d2e;
+  text-decoration: none;
+}
+
+.demo-notice {
+  margin-top: 1.5rem;
+  padding: 0.75rem;
+  background: #fef3c7;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #92400e;
+  text-align: center;
+}
+
+/* ============================================
+   ROLE CARDS (for signin options)
+   ============================================ */
+.signin-options {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.role-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.role-card {
+  background: white;
+  padding: 2rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.role-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.role-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.role-card h3 {
+  margin-bottom: 0.75rem;
+  color: #1a4d2e;
+}
+
+.role-card p {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  min-height: 60px;
+}
+
+.role-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.resident-btn {
+  background: #1a4d2e;
+  color: white;
+}
+
+.worker-btn {
+  background: #2980b9;
+  color: white;
+}
+
+.admin-btn {
+  background: #8e44ad;
+  color: white;
+}
+
+/* ============================================
+   REPORT FORM
+   ============================================ */
+.report-form {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.file-input {
+  padding: 0.5rem 0;
+}
+
+.submit-btn {
+  background-color: #1a4d2e;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+}
+
+.submit-btn:hover {
+  background-color: #2d6a4f;
+}
+
+.location-info {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
+.location-detail {
+  margin-bottom: 0.25rem;
+}
+
+.location-detail.source {
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+}
+
+/* ============================================
+   MY REQUESTS PAGE
+   ============================================ */
+.filter-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
 .filter-tabs ul {
   display: flex;
   gap: 0.5rem;
@@ -31,6 +541,21 @@
   margin: 0;
 }
 
+.filter-tab {
+  padding: 0.5rem 1.5rem;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-tab.active {
+  background: #1a4d2e;
+  color: white;
+  border-color: #1a4d2e;
+}
+
 .count {
   background: rgba(0,0,0,0.1);
   padding: 0.1rem 0.4rem;
@@ -39,47 +564,139 @@
   margin-left: 0.25rem;
 }
 
-/* Footer Styles */
-.app-footer {
-  background-color: #1a3a2a;
-  color: #ccc;
-  padding: 1.5rem 2rem;
-  margin-top: 2rem;
-}
-
-.app-footer p {
-  margin: 0.25rem 0;
-}
-
-.footer-attribution {
-  font-size: 0.85rem;
-  color: #aaa;
-}
-
-.footer-attribution cite {
-  font-style: italic;
-}
-
-.app-footer nav ul {
+.requests-list {
   display: flex;
-  gap: 1.5rem;
+  flex-direction: column;
+  gap: 1rem;
   list-style: none;
   padding: 0;
-  margin-top: 1rem;
 }
 
-.app-footer nav a {
-  color: #ccc;
-  text-decoration: none;
+.request-card {
+  background: white;
+  padding: 1.25rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.request-category {
+  font-weight: 600;
+  color: #1a4d2e;
+}
+
+.request-location {
+  color: #666;
+  margin-bottom: 0.75rem;
+}
+
+.request-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.request-date {
+  color: #999;
   font-size: 0.9rem;
 }
 
-.app-footer nav a:hover {
-  color: white;
-  text-decoration: underline;
+.view-details-btn {
+  background: none;
+  border: 1px solid #1a4d2e;
+  color: #1a4d2e;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-/* Worker Stats */
+.no-requests {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+}
+
+/* ============================================
+   STATUS BADGE
+   ============================================ */
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.status-acknowledged {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-progress {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-resolved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-assigned {
+  background: #e9d5ff;
+  color: #6b21a8;
+}
+
+/* ============================================
+   RESIDENT DASHBOARD
+   ============================================ */
+.dashboard-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.primary-action {
+  background: #1a4d2e;
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: bold;
+  flex: 2;
+  text-align: center;
+}
+
+.secondary-action {
+  background: white;
+  color: #1a4d2e;
+  border: 2px solid #1a4d2e;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: bold;
+  flex: 1;
+  text-align: center;
+}
+
+.quick-stats .stats-row {
+  display: flex;
+  gap: 1rem;
+}
+
+/* ============================================
+   WORKER DASHBOARD
+   ============================================ */
+.worker-welcome {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
 .worker-info {
   margin-bottom: 1.5rem;
   color: #555;
@@ -115,15 +732,113 @@
   margin: 0.25rem 0 0 0;
 }
 
+.dashboard-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+}
+
+.dashboard-section h2 {
+  margin-bottom: 1rem;
+  color: #1a4d2e;
+}
+
+.section-description {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
 .worker-request-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.section-description {
+.worker-request-card {
+  border: 1px solid #eee;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+}
+
+.worker-request-card.unassigned {
+  background: #fefce8;
+}
+
+.worker-request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.priority-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.priority-critical {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.priority-high {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.priority-medium {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.priority-low {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.worker-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.action-btn.progress {
+  background: #3b82f6;
+  color: white;
+}
+
+.action-btn.resolve {
+  background: #10b981;
+  color: white;
+}
+
+.action-btn.claim {
+  background: #1a4d2e;
+  color: white;
+}
+
+.reported-time {
   color: #666;
-  margin-bottom: 1rem;
+  font-size: 0.85rem;
 }
 
 .performance-summary {
@@ -166,7 +881,9 @@
   font-style: italic;
 }
 
-/* Help Section */
+/* ============================================
+   HELP SECTION
+   ============================================ */
 .help-section {
   background: #f0f7ff;
   border-left: 4px solid #1a4d2e;
@@ -190,13 +907,51 @@
   padding: 0.25rem 0;
 }
 
-/* Page Subtitle */
-.page-subtitle {
-  color: #666;
-  margin-bottom: 1.5rem;
+/* ============================================
+   FOOTER
+   ============================================ */
+.app-footer {
+  background-color: #1a3a2a;
+  color: #ccc;
+  padding: 1.5rem 2rem;
+  margin-top: 2rem;
 }
 
-/* Focus Styles for Accessibility */
+.app-footer p {
+  margin: 0.25rem 0;
+}
+
+.footer-attribution {
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.footer-attribution cite {
+  font-style: italic;
+}
+
+.app-footer nav ul {
+  display: flex;
+  gap: 1.5rem;
+  list-style: none;
+  padding: 0;
+  margin-top: 1rem;
+}
+
+.app-footer nav a {
+  color: #ccc;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.app-footer nav a:hover {
+  color: white;
+  text-decoration: underline;
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -206,7 +961,6 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-/* Skip to Main Content Link (Hidden until focused) */
 .skip-link {
   position: absolute;
   top: -40px;
@@ -219,4 +973,32 @@ textarea:focus-visible {
 
 .skip-link:focus {
   top: 0;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+  .role-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-compact {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .dashboard-actions {
+    flex-direction: column;
+  }
+  
+  .navbar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .nav-links ul {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }

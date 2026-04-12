@@ -1,33 +1,32 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 function Navbar() {
+  const location = useLocation();
+  const isPublic = location.pathname === '/' || location.pathname === '/signin';
+  const userRole = location.pathname.split('/')[1]; // resident, worker, or admin
+
   return (
-    <header style={{ 
-      background: '#1a4d2e', 
-      padding: '1rem 2rem', 
-      color: 'white',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    }}>
-      <h1 style={{ margin: 0 }}>🏛️ Municipal Connect</h1>
-      <nav>
-        <Link to="/dashboard" style={{ color: 'white', marginRight: '1.5rem', textDecoration: 'none' }}>Dashboard</Link>
-        <Link to="/report" style={{ color: 'white', marginRight: '1.5rem', textDecoration: 'none' }}>Report</Link>
-        <Link to="/my-requests" style={{ color: 'white', marginRight: '1.5rem', textDecoration: 'none' }}>My Requests</Link>
-        <Link to="/worker" style={{ color: 'white', textDecoration: 'none' }}>Worker View</Link>
-      </nav>
-      <button style={{ 
-        background: '#ffd700', 
-        color: '#1a4d2e', 
-        border: 'none', 
-        padding: '0.5rem 1rem', 
-        borderRadius: '4px',
-        fontWeight: 'bold',
-        cursor: 'pointer'
-      }}>
-        Sign In
-      </button>
+    <header className="navbar">
+      <div className="nav-brand">
+        <Link to="/">
+          <h1>🏛️ Municipal Connect</h1>
+        </Link>
+      </div>
+      
+      {isPublic ? (
+        <nav className="nav-links">
+          <Link to="/signin" className="signin-link">Sign In</Link>
+        </nav>
+      ) : (
+        <nav className="nav-links">
+          <span className="user-role-badge">
+            {userRole === 'resident' && '🏠 Resident'}
+            {userRole === 'worker' && '🔧 Worker'}
+            {userRole === 'admin' && '📊 Admin'}
+          </span>
+          <Link to="/">Sign Out</Link>
+        </nav>
+      )}
     </header>
   );
 }

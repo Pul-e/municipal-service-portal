@@ -1,9 +1,12 @@
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import PublicDashboardPage from './pages/PublicDashboardPage';
+import SignInPage from './pages/SignInPage';
+import ResidentDashboardPage from './pages/ResidentDashboardPage';
 import ReportIssuePage from './pages/ReportIssuePage';
 import MyRequestsPage from './pages/MyRequestsPage';
 import WorkerDashboardPage from './pages/WorkerDashboardPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 
 function App() {
   return (
@@ -12,11 +15,20 @@ function App() {
       
       <main className="main-content">
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<PublicDashboardPage />} />
-          <Route path="/dashboard" element={<PublicDashboardPage />} />
-          <Route path="/report" element={<ReportIssuePage />} />
-          <Route path="/my-requests" element={<MyRequestsPage />} />
-          <Route path="/worker" element={<WorkerDashboardPage />} />
+          <Route path="/signin" element={<SignInPage />} />
+          
+          {/* Resident Routes (Protected - Sprint 2) */}
+          <Route path="/resident/dashboard" element={<ResidentDashboardPage />} />
+          <Route path="/resident/report" element={<ReportIssuePage />} />
+          <Route path="/resident/my-requests" element={<MyRequestsPage />} />
+          
+          {/* Worker Routes (Protected - Sprint 2) */}
+          <Route path="/worker/dashboard" element={<WorkerDashboardPage />} />
+          
+          {/* Admin Routes (Protected - Sprint 2) */}
+          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
         </Routes>
       </main>
     </div>

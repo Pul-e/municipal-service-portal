@@ -19,6 +19,14 @@ function WorkerDashboardPage() {
       priority: 'Medium',
       assignedDate: '2026-04-10',
     },
+    {
+      id: 103,
+      category: 'Burst Pipe',
+      location: 'Main Road, Melville',
+      status: 'In Progress',
+      priority: 'Critical',
+      assignedDate: '2026-04-11',
+    },
   ];
 
   // Sample unassigned queue
@@ -46,6 +54,14 @@ function WorkerDashboardPage() {
       priority: 'Medium',
       reported: '2026-04-11T07:30',
       reportedDisplay: '2.5 hours ago',
+    },
+    {
+      id: 204,
+      category: 'Power Outage',
+      location: '4th Avenue, Alexandra',
+      priority: 'High',
+      reported: '2026-04-11T10:00',
+      reportedDisplay: '5 min ago',
     },
   ];
 
