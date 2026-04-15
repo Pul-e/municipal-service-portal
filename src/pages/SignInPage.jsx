@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 function SignInPage() {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const defaultRole = searchParams.get('role') || 'resident';
 
+  const [role, setRole] = useState(defaultRole);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,7 +52,7 @@ function SignInPage() {
         navigate('/admin/dashboard');
         break;
       default:
-        navigate('/resident/dashboard');
+        navigate('/');
     }
   };
 
@@ -123,7 +126,7 @@ function SignInPage() {
         {/* Email/Password Form */}
         <form onSubmit={handleEmailSignIn} className="signin-form">
           <div className="form-group">
-            <label htmlFor="email">Email address</label>
+            <label htmlFor="email">Username or email address</label>
             <input
               type="email"
               id="email"
@@ -144,6 +147,7 @@ function SignInPage() {
               placeholder="••••••••"
               required
             />
+            <Link to="/forgot-password" className="forgot-password">Forgot password?</Link>
           </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>
@@ -157,15 +161,15 @@ function SignInPage() {
         </div>
 
         {/* Google Sign In Button */}
-        <button
-          onClick={handleGoogleSignIn}
+        <button 
+          onClick={handleGoogleSignIn} 
           className="google-signin-btn"
           disabled={loading}
         >
-          <img
-            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-            alt="Google logo"
-            width="20"
+          <img 
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+            alt="Google logo" 
+            width="20" 
             height="20"
           />
           Continue with Google
