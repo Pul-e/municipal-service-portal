@@ -1,13 +1,10 @@
 import { useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 function SignInPage() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const defaultRole = searchParams.get('role') || 'resident';
 
-  const [role, setRole] = useState(defaultRole);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,28 +28,27 @@ function SignInPage() {
       return;
     }
 
-    // After login, check role and redirect
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role:roles(name)')
-      .eq('user_id', data.user.id)
+    // After login, check role from profiles table
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
       .single();
 
-    const userRole = roleData?.role?.name || 'resident';
+    const userRole = profileData?.role || 'user';
 
-    // Redirect based on actual role from database
     switch (userRole) {
-      case 'resident':
+      case 'user':
         navigate('/resident/dashboard');
         break;
-      case 'municipal_worker':
+      case 'staff':
         navigate('/worker/dashboard');
         break;
       case 'admin':
         navigate('/admin/dashboard');
         break;
       default:
-        navigate('/');
+        navigate('/resident/dashboard');
     }
   };
 
@@ -60,10 +56,6 @@ function SignInPage() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
-
-    // Store the selected role in sessionStorage (clears when tab closes)
-    // This is more secure than localStorage for temporary data
-    sessionStorage.setItem('pendingRole', role);
 
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -86,30 +78,6 @@ function SignInPage() {
       </header>
 
       <div className="signin-container">
-        {/* Role Selector */}
-        <div className="role-selector">
-          <button
-            type="button"
-            className={`role-option ${role === 'resident' ? 'active' : ''}`}
-            onClick={() => setRole('resident')}
-          >
-            🏠 Resident
-          </button>
-          <button
-            type="button"
-            className={`role-option ${role === 'worker' ? 'active' : ''}`}
-            onClick={() => setRole('worker')}
-          >
-            🔧 Worker
-          </button>
-          <button
-            type="button"
-            className={`role-option ${role === 'admin' ? 'active' : ''}`}
-            onClick={() => setRole('admin')}
-          >
-            📊 Admin
-          </button>
-        </div>
 
         {/* Error message */}
         {error && (
@@ -121,7 +89,7 @@ function SignInPage() {
         {/* Email/Password Form */}
         <form onSubmit={handleEmailSignIn} className="signin-form">
           <div className="form-group">
-            <label htmlFor="email">Username or email address</label>
+            <label htmlFor="email">Email address</label>
             <input
               type="email"
               id="email"
@@ -142,7 +110,6 @@ function SignInPage() {
               placeholder="••••••••"
               required
             />
-            <Link to="/forgot-password" className="forgot-password">Forgot password?</Link>
           </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>
@@ -156,15 +123,15 @@ function SignInPage() {
         </div>
 
         {/* Google Sign In Button */}
-        <button 
-          onClick={handleGoogleSignIn} 
+        <button
+          onClick={handleGoogleSignIn}
           className="google-signin-btn"
           disabled={loading}
         >
-          <img 
-            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
-            alt="Google logo" 
-            width="20" 
+          <img
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            alt="Google logo"
+            width="20"
             height="20"
           />
           Continue with Google
