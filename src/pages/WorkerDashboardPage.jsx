@@ -1,214 +1,307 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '../supabaseClient';
 import StatusBadge from '../components/StatusBadge';
 
 function WorkerDashboardPage() {
-  // Sample assigned requests
-  const assignedRequests = [
-    {
-      id: 101,
-      category: 'Pothole',
-      location: 'Jorissen Street, Braamfontein',
-      status: 'In Progress',
-      priority: 'High',
-      assignedDate: '2026-04-11',
-    },
-    {
-      id: 102,
-      category: 'Street Light',
-      location: 'Empire Road, Parktown',
-      status: 'Assigned',
-      priority: 'Medium',
-      assignedDate: '2026-04-10',
-    },
-    {
-      id: 103,
-      category: 'Burst Pipe',
-      location: 'Main Road, Melville',
-      status: 'In Progress',
-      priority: 'Critical',
-      assignedDate: '2026-04-11',
-    },
-  ];
+    const [assignedRequests, setAssignedRequests] = useState([]);
+    const [unassignedRequests, setUnassignedRequests] = useState([]);
+    const [user, setUser] = useState(null);
+    const [profile, setProfile] = useState(null);
 
-  // Sample unassigned queue
-  const unassignedRequests = [
-    {
-      id: 201,
-      category: 'Water Leak',
-      location: 'Vilakazi Street, Soweto',
-      priority: 'Critical',
-      reported: '2026-04-11T09:45',
-      reportedDisplay: '15 min ago',
-    },
-    {
-      id: 202,
-      category: 'Illegal Dumping',
-      location: 'Ingonyama Road, Diepsloot',
-      priority: 'Low',
-      reported: '2026-04-11T08:00',
-      reportedDisplay: '2 hours ago',
-    },
-    {
-      id: 203,
-      category: 'Pothole',
-      location: 'Rissik Street, CBD',
-      priority: 'Medium',
-      reported: '2026-04-11T07:30',
-      reportedDisplay: '2.5 hours ago',
-    },
-    {
-      id: 204,
-      category: 'Power Outage',
-      location: '4th Avenue, Alexandra',
-      priority: 'High',
-      reported: '2026-04-11T10:00',
-      reportedDisplay: '5 min ago',
-    },
-  ];
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-  const workerName = 'Thabo Ndlovu';
-  const workerZone = 'Zone 5';
-  const workerRole = 'Senior Technician';
+    // Load dashboard data
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true);
+            setError(null);
 
-  return (
-    <article className="page-container">
-      <header>
-        <h1>Municipal Worker Dashboard</h1>
-        <div className="worker-info" role="doc-subtitle">
-          <p>
-            <strong>{workerName}</strong> • {workerZone} • {workerRole}
-          </p>
-        </div>
-      </header>
+            try {
+                // 1. Get auth user
+                const {
+                    data: { user },
+                    error: userError,
+                } = await supabase.auth.getUser();
 
-      {/* Stats Summary */}
-      <section className="worker-stats" aria-label="Workload summary">
-        <dl className="stats-inline">
-          <div>
-            <dt>Assigned to me</dt>
-            <dd>{assignedRequests.length}</dd>
-          </div>
-          <div>
-            <dt>In queue</dt>
-            <dd>{unassignedRequests.length}</dd>
-          </div>
-          <div>
-            <dt>Completed today</dt>
-            <dd>4</dd>
-          </div>
-        </dl>
-      </section>
+                if (userError) throw userError;
+                if (!user) return;
 
-      {/* Assigned to Me Section */}
-      <section className="dashboard-section" aria-labelledby="assigned-heading">
-        <h2 id="assigned-heading">📋 Assigned to Me</h2>
-        
-        {assignedRequests.length > 0 ? (
-          <ul className="worker-request-list" aria-label="Your assigned requests">
-            {assignedRequests.map((req) => (
-              <li key={req.id}>
-                <article className="worker-request-card">
-                  <header className="worker-request-header">
-                    <h3 className="request-category">{req.category}</h3>
-                    <span 
-                      className={`priority-badge priority-${req.priority.toLowerCase()}`}
-                      aria-label={`Priority: ${req.priority}`}
-                    >
-                      {req.priority}
-                    </span>
-                  </header>
-                  
-                  <address className="request-location">{req.location}</address>
-                  
-                  <footer className="worker-actions">
-                    <StatusBadge status={req.status} />
-                    <div className="action-buttons">
-                      <button 
-                        className="action-btn progress"
-                        aria-label={`Mark ${req.category} as in progress`}
-                      >
-                        In Progress
-                      </button>
-                      <button 
-                        className="action-btn resolve"
-                        aria-label={`Mark ${req.category} as resolved`}
-                      >
-                        Resolved
-                      </button>
+                setUser(user);
+
+                // 2. Fetch in parallel
+                const [profileRes, assignedRes, unassignedRes] = await Promise.all([
+                    supabase.from('profiles').select('*').eq('id', user.id).single(),
+
+                    supabase
+                        .from('service_request_assignments')
+                        .select('*, service_requests(*)')
+                        .eq('staff_id', user.id)
+                        .is('unassigned_at', null),
+
+                    supabase
+                        .from('service_requests')
+                        .select('*')
+                        .eq('assigned', false)
+                        .eq('status', 'Pending'),
+                ]);
+
+                if (profileRes.error) throw profileRes.error;
+                if (assignedRes.error) throw assignedRes.error;
+                if (unassignedRes.error) throw unassignedRes.error;
+
+                setProfile(profileRes.data);
+                setAssignedRequests(assignedRes.data || []);
+                setUnassignedRequests(unassignedRes.data || []);
+            } catch (err) {
+                console.error(err);
+                setError('Failed to load dashboard data.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        load();
+    }, []);
+
+    // Claim request
+    const handleClaim = async (requestId) => {
+        try {
+            const { error } = await supabase
+                .from('service_request_assignments')
+                .insert({
+                    request_id: requestId,
+                    staff_id: user.id,
+                    assigned_by: null,
+                });
+
+            if (error) throw error;
+
+            setUnassignedRequests((prev) =>
+                prev.filter((r) => r.id !== requestId)
+            );
+        } catch (err) {
+            console.error(err);
+            setError('Failed to claim request.');
+        }
+    };
+
+    // Resolve request
+    const handleResolve = async (requestId) => {
+        try {
+            const { error } = await supabase
+                .from('service_requests')
+                .update({ status: 'Resolved' })
+                .eq('id', requestId);
+
+            if (error) throw error;
+
+            setAssignedRequests((prev) =>
+                prev.map((a) =>
+                    a.request_id === requestId
+                        ? {
+                            ...a,
+                            service_requests: {
+                                ...a.service_requests,
+                                status: 'Resolved',
+                            },
+                        }
+                        : a
+                )
+            );
+        } catch (err) {
+            console.error(err);
+            setError('Failed to resolve request.');
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="page-container">
+                <p>Loading dashboard...</p>
+            </div>
+        );
+    }
+
+    return (
+        <article className="page-container">
+            <header>
+                <h1>Municipal Worker Dashboard</h1>
+
+                <div className="worker-info">
+                    <p>
+                        <strong>
+                            {profile?.full_name || user?.email || 'Worker'}
+                        </strong>
+                    </p>
+                    <p>
+                        {profile?.zone ? `Zone ${profile.zone}` : ''} •{' '}
+                        {profile?.role || 'Technician'}
+                    </p>
+                </div>
+            </header>
+
+            {error && <p className="error">{error}</p>}
+
+            {/* Stats Summary (from Code 1) */}
+            <section className="worker-stats">
+                <dl className="stats-inline">
+                    <div>
+                        <dt>Assigned to me</dt>
+                        <dd>{assignedRequests.length}</dd>
                     </div>
-                  </footer>
-                </article>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="empty-state">No requests assigned to you.</p>
-        )}
-      </section>
+                    <div>
+                        <dt>In queue</dt>
+                        <dd>{unassignedRequests.length}</dd>
+                    </div>
+                    <div>
+                        <dt>Completed today</dt>
+                        <dd>
+                            {
+                                assignedRequests.filter(
+                                    (r) => r.service_requests?.status === 'Resolved'
+                                ).length
+                            }
+                        </dd>
+                    </div>
+                </dl>
+            </section>
 
-      {/* Unassigned Queue Section */}
-      <section className="dashboard-section" aria-labelledby="queue-heading">
-        <h2 id="queue-heading">⏳ Unassigned Queue</h2>
-        <p className="section-description">
-          Requests waiting to be claimed in {workerZone}
-        </p>
-        
-        {unassignedRequests.length > 0 ? (
-          <ul className="worker-request-list" aria-label="Unassigned requests in your zone">
-            {unassignedRequests.map((req) => (
-              <li key={req.id}>
-                <article className="worker-request-card unassigned">
-                  <header className="worker-request-header">
-                    <h3 className="request-category">{req.category}</h3>
-                    <span 
-                      className={`priority-badge priority-${req.priority.toLowerCase()}`}
-                      aria-label={`Priority: ${req.priority}`}
-                    >
-                      {req.priority}
-                    </span>
-                  </header>
-                  
-                  <address className="request-location">{req.location}</address>
-                  
-                  <footer className="worker-actions">
-                    <time dateTime={req.reported} className="reported-time">
-                      🕐 Reported {req.reportedDisplay}
-                    </time>
-                    <button 
-                      className="action-btn claim"
-                      aria-label={`Claim ${req.category} request at ${req.location}`}
-                    >
-                      Claim Request
-                    </button>
-                  </footer>
-                </article>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="empty-state">No requests in queue for your zone.</p>
-        )}
-      </section>
+            {/* Assigned Requests */}
+            <section className="dashboard-section">
+                <h2>📋 Assigned to Me</h2>
 
-      {/* Performance Summary */}
-      <aside className="performance-summary" aria-label="Your performance metrics">
-        <h3>📊 Your Performance</h3>
-        <dl className="metrics-grid">
-          <div>
-            <dt>This Week</dt>
-            <dd>12 resolved</dd>
-          </div>
-          <div>
-            <dt>Avg Response</dt>
-            <dd>2.1 hours</dd>
-          </div>
-          <div>
-            <dt>Rating</dt>
-            <dd>4.8 ⭐</dd>
-          </div>
-        </dl>
-      </aside>
-    </article>
-  );
+                {assignedRequests.length === 0 ? (
+                    <p className="empty-state">
+                        No requests assigned to you.
+                    </p>
+                ) : (
+                    <ul className="worker-request-list">
+                        {assignedRequests.map((a) => (
+                            <li key={a.id}>
+                                <article className="worker-request-card">
+                                    <header className="worker-request-header">
+                                        <h3>{a.service_requests.category}</h3>
+
+                                        <span
+                                            className={`priority-badge priority-${a.service_requests.priority?.toLowerCase?.() ||
+                                                'low'
+                                                }`}
+                                        >
+                                            {a.service_requests.priority}
+                                        </span>
+                                    </header>
+
+                                    <address className="request-location">
+                                        {a.service_requests.location}
+                                    </address>
+
+                                    <footer className="worker-actions">
+                                        <StatusBadge
+                                            status={a.service_requests.status}
+                                        />
+
+                                        {a.service_requests.status !== 'Resolved' && (
+                                            <button
+                                                className="action-btn resolve"
+                                                onClick={() =>
+                                                    handleResolve(a.request_id)
+                                                }
+                                            >
+                                                Mark Resolved
+                                            </button>
+                                        )}
+                                    </footer>
+                                </article>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+
+            {/* Unassigned Queue (enhanced UI from Code 1) */}
+            <section className="dashboard-section">
+                <h2>⏳ Unassigned Queue</h2>
+
+                <p className="section-description">
+                    Requests waiting to be claimed
+                </p>
+
+                {unassignedRequests.length === 0 ? (
+                    <p className="empty-state">No requests in queue.</p>
+                ) : (
+                    <ul className="worker-request-list">
+                        {unassignedRequests.map((req) => (
+                            <li key={req.id}>
+                                <article className="worker-request-card unassigned">
+                                    <header className="worker-request-header">
+                                        <h3>{req.category}</h3>
+
+                                        <span
+                                            className={`priority-badge priority-${req.priority?.toLowerCase?.() || 'low'
+                                                }`}
+                                        >
+                                            {req.priority}
+                                        </span>
+                                    </header>
+
+                                    <address className="request-location">
+                                        {req.location}
+                                    </address>
+
+                                    <footer className="worker-actions">
+                                        <button
+                                            className="action-btn claim"
+                                            onClick={() => handleClaim(req.id)}
+                                        >
+                                            Claim Request
+                                        </button>
+                                    </footer>
+                                </article>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+
+            {/* Performance Summary (from Code 1) */}
+            <aside className="performance-summary">
+                <h3>📊 Your Performance</h3>
+
+                <dl className="metrics-grid">
+                    <div>
+                        <dt>This Week</dt>
+                        <dd>
+                            {
+                                assignedRequests.filter(
+                                    (r) =>
+                                        r.service_requests?.status === 'Resolved'
+                                ).length
+                            }{' '}
+                            resolved
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt>Active Tasks</dt>
+                        <dd>
+                            {
+                                assignedRequests.filter(
+                                    (r) =>
+                                        r.service_requests?.status !== 'Resolved'
+                                ).length
+                            }
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt>Rating</dt>
+                        <dd>4.8 ⭐</dd>
+                    </div>
+                </dl>
+            </aside>
+        </article>
+    );
 }
 
 export default WorkerDashboardPage;

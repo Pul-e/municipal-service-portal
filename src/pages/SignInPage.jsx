@@ -28,15 +28,16 @@ function SignInPage() {
       return;
     }
 
-    // After login, check role from profiles table
-    const { data: profileData } = await supabase
+    // Get role from profiles table
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
       .single();
 
-    const userRole = profileData?.role || 'user';
+    const userRole = profile?.role || 'user';
 
+    // Redirect based on role from database
     switch (userRole) {
       case 'user':
         navigate('/resident/dashboard');
@@ -78,6 +79,39 @@ function SignInPage() {
       </header>
 
       <div className="signin-container">
+        {/* Role Selector - PLACEHOLDER BUTTONS (non-functional, to be removed later) */}
+        <div className="role-selector">
+          <button
+            type="button"
+            className={`role-option ${role === 'resident' ? 'active' : ''}`}
+            onClick={() => setRole('resident')}
+            disabled
+            style={{ opacity: 0.6, cursor: 'not-allowed' }}
+          >
+            🏠 Resident
+          </button>
+          <button
+            type="button"
+            className={`role-option ${role === 'worker' ? 'active' : ''}`}
+            onClick={() => setRole('worker')}
+            disabled
+            style={{ opacity: 0.6, cursor: 'not-allowed' }}
+          >
+            🔧 Worker
+          </button>
+          <button
+            type="button"
+            className={`role-option ${role === 'admin' ? 'active' : ''}`}
+            onClick={() => setRole('admin')}
+            disabled
+            style={{ opacity: 0.6, cursor: 'not-allowed' }}
+          >
+            📊 Admin
+          </button>
+        </div>
+        <p style={{ fontSize: '12px', color: '#888', textAlign: 'center', marginTop: '-10px', marginBottom: '15px' }}>
+          (Role selection disabled - access controlled by admin)
+        </p>
 
         {/* Error message */}
         {error && (

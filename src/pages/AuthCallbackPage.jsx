@@ -21,20 +21,49 @@ function AuthCallbackPage() {
           setError('No session found. Please try signing in again.');
           return;
         }
+        
+        setStatus('Checking your account...');
 
-        setStatus('Setting up your account...');
-
-        // Check role from profiles table
-        const { data: profileData } = await supabase
+        // Check the profiles table for existing role
+        let { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', session.user.id)
           .single();
 
-        const userRole = profileData?.role || 'user';
+        let userRole = profile?.role;
 
-        setStatus(`Redirecting to your dashboard...`);
+        // If no profile exists yet, create one with default role 'user'
+        if (profileError && profileError.code === 'PGRST116') {
+          setStatus('Creating your account...');
+          
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: session.user.id,
+              email: session.user.email,
+              full_name: session.user.user_metadata?.full_name || session.user.email,
+              role: 'user'  // Default role for new users
+            });
 
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+            setError('Failed to create your account profile.');
+            return;
+          }
+
+          userRole = 'user';
+        } else if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          setError('Failed to load your account information.');
+          return;
+        } else {
+          userRole = profile?.role || 'user';
+        }
+
+        setStatus(`Redirecting to ${userRole} dashboard...`);
+        
+        // Redirect based on the role from profiles table
         setTimeout(() => {
           switch (userRole) {
             case 'user':
