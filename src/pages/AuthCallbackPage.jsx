@@ -10,8 +10,9 @@ function AuthCallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        // Get the session after Google redirect
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
+        
         if (sessionError) {
           setError(sessionError.message);
           return;
@@ -95,7 +96,7 @@ function AuthCallbackPage() {
         <div style={{ color: '#dc2626', fontSize: '24px', marginBottom: '16px' }}>❌</div>
         <h2 style={{ color: '#991b1b' }}>Sign In Failed</h2>
         <p style={{ color: '#666' }}>{error}</p>
-        <button
+        <button 
           onClick={() => navigate('/signin')}
           style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer' }}
         >
