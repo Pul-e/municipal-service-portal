@@ -13,12 +13,13 @@ function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  // Email/Password Sign In
+  const handleEmailSignIn = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -30,12 +31,21 @@ function SignInPage() {
       return;
     }
 
-    // Navigate to the right dashboard based on selected role
-    switch (role) {
+    // After login, check role and redirect
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role:roles(name)')
+      .eq('user_id', data.user.id)
+      .single();
+
+    const userRole = roleData?.role?.name || 'resident';
+
+    // Redirect based on actual role from database
+    switch (userRole) {
       case 'resident':
         navigate('/resident/dashboard');
         break;
-      case 'worker':
+      case 'municipal_worker':
         navigate('/worker/dashboard');
         break;
       case 'admin':
@@ -43,6 +53,28 @@ function SignInPage() {
         break;
       default:
         navigate('/');
+    }
+  };
+
+  // Google Sign In
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setError('');
+
+    // Store the selected role in sessionStorage (clears when tab closes)
+    // This is more secure than localStorage for temporary data
+    sessionStorage.setItem('pendingRole', role);
+
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+
+    if (authError) {
+      setError(authError.message);
+      setLoading(false);
     }
   };
 
@@ -57,18 +89,21 @@ function SignInPage() {
         {/* Role Selector */}
         <div className="role-selector">
           <button
+            type="button"
             className={`role-option ${role === 'resident' ? 'active' : ''}`}
             onClick={() => setRole('resident')}
           >
             🏠 Resident
           </button>
           <button
+            type="button"
             className={`role-option ${role === 'worker' ? 'active' : ''}`}
             onClick={() => setRole('worker')}
           >
             🔧 Worker
           </button>
           <button
+            type="button"
             className={`role-option ${role === 'admin' ? 'active' : ''}`}
             onClick={() => setRole('admin')}
           >
@@ -78,15 +113,15 @@ function SignInPage() {
 
         {/* Error message */}
         {error && (
-          <div style={{ background: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
+          <div className="error-message" style={{ background: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem' }}>
             {error}
           </div>
         )}
 
-        {/* Sign In Form */}
-        <form onSubmit={handleSubmit} className="signin-form">
+        {/* Email/Password Form */}
+        <form onSubmit={handleEmailSignIn} className="signin-form">
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="email">Username or email address</label>
             <input
               type="email"
               id="email"
@@ -107,12 +142,33 @@ function SignInPage() {
               placeholder="••••••••"
               required
             />
+            <Link to="/forgot-password" className="forgot-password">Forgot password?</Link>
           </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? 'Signing in...' : `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        {/* Divider */}
+        <div className="divider">
+          <span>or</span>
+        </div>
+
+        {/* Google Sign In Button */}
+        <button 
+          onClick={handleGoogleSignIn} 
+          className="google-signin-btn"
+          disabled={loading}
+        >
+          <img 
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+            alt="Google logo" 
+            width="20" 
+            height="20"
+          />
+          Continue with Google
+        </button>
 
         <div className="signin-footer">
           <p>Don't have an account? <Link to="/register">Register here</Link></p>
