@@ -38,14 +38,14 @@ function SignInPage() {
       .eq('user_id', data.user.id)
       .single();
 
-    const userRole = roleData?.role?.name || 'resident';
+    const userRole = roleData?.role?.name || 'user';
 
     // Redirect based on actual role from database
     switch (userRole) {
-      case 'resident':
+      case 'user':
         navigate('/resident/dashboard');
         break;
-      case 'municipal_worker':
+      case 'staff':
         navigate('/worker/dashboard');
         break;
       case 'admin':
