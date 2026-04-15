@@ -1,181 +1,118 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
-function AdminDashboardPage() {
-    const [requests, setRequests] = useState([]);
-    const [staffList, setStaffList] = useState([]);
-    const [user, setUser] = useState(null);
+function AuthCallbackPage() {
+  const navigate = useNavigate();
+  const [error, setError] = useState('');
+  const [status, setStatus] = useState('Processing your sign in...');
 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        const load = async () => {
-            setLoading(true);
-            setError(null);
-
-            try {
-                // Get admin user
-                const {
-                    data: { user },
-                    error: userError,
-                } = await supabase.auth.getUser();
-
-                if (userError) throw userError;
-                setUser(user);
-
-                // Load in parallel
-                const [reqRes, staffRes] = await Promise.all([
-                    supabase
-                        .from('service_requests')
-                        .select('*')
-                        .order('created_at', { ascending: false }),
-
-                    supabase
-                        .from('profiles')
-                        .select('id, full_name, role')
-                        .eq('role', 'staff'),
-                ]);
-
-                if (reqRes.error) throw reqRes.error;
-                if (staffRes.error) throw staffRes.error;
-
-                setRequests(reqRes.data || []);
-                setStaffList(staffRes.data || []);
-            } catch (err) {
-                console.error(err);
-                setError('Failed to load admin dashboard.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        load();
-    }, []);
-
-    // Assign request to staff
-    const handleAssign = async (requestId, staffId) => {
-        try {
-            if (!staffId) return;
-
-            const { error } = await supabase
-                .from('service_request_assignments')
-                .insert({
-                    request_id: requestId,
-                    staff_id: staffId,
-                    assigned_by: user.id,
-                });
-
-            if (error) throw error;
-
-            // Optimistic UI update: mark request as assigned locally
-            setRequests((prev) =>
-                prev.map((req) =>
-                    req.id === requestId
-                        ? { ...req, assigned: true }
-                        : req
-                )
-            );
-        } catch (err) {
-            console.error(err);
-            setError('Failed to assign request.');
+  useEffect(() => {
+    const handleCallback = async () => {
+      try {
+        // Get the session after Google redirect
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          setError(sessionError.message);
+          return;
         }
+
+        if (!session) {
+          setError('No session found. Please try signing in again.');
+          return;
+        }
+
+        // Get the role that was selected before Google redirect
+        const pendingRole = sessionStorage.getItem('pendingRole');
+        
+        setStatus(`Setting up your ${pendingRole || 'user'} account...`);
+
+        // Check the profiles table for existing role
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        let userRole = profile?.role;
+
+        // If no role assigned yet, update the profile with selected role
+        if (!userRole && pendingRole) {
+          // Map frontend role names to database role values
+          let dbRole = 'user'; // default
+          if (pendingRole === 'resident' || pendingRole === 'user') dbRole = 'user';
+          if (pendingRole === 'worker') dbRole = 'staff';
+          if (pendingRole === 'admin') dbRole = 'admin';
+
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ role: dbRole })
+            .eq('id', session.user.id);
+
+          if (updateError) {
+            console.error('Error updating role:', updateError);
+            setError('Failed to assign role to your account.');
+            return;
+          }
+
+          userRole = dbRole;
+        }
+
+        // Clear the stored role
+        sessionStorage.removeItem('pendingRole');
+
+        setStatus(`Redirecting to ${userRole} dashboard...`);
+        
+        // Redirect based on the role
+        setTimeout(() => {
+          switch (userRole) {
+            case 'user':
+              navigate('/resident/dashboard');
+              break;
+            case 'staff':
+              navigate('/worker/dashboard');
+              break;
+            case 'admin':
+              navigate('/admin/dashboard');
+              break;
+            default:
+              navigate('/');
+          }
+        }, 500);
+
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError('An unexpected error occurred. Please try again.');
+      }
     };
 
-    if (loading) {
-        return (
-            <article className="page-container">
-                <p>Loading admin dashboard...</p>
-            </article>
-        );
-    }
+    handleCallback();
+  }, [navigate]);
 
+  if (error) {
     return (
-        <article className="page-container">
-            <header>
-                <h1>Admin Dashboard</h1>
-                <p>System Administrator • All Wards</p>
-            </header>
-
-            {error && <p className="error">{error}</p>}
-
-            {/* Stats Section (from Code 1, now dynamic-ready) */}
-            <section className="admin-stats">
-                <div className="stat-card">
-                    {staffList.length} Total Staff
-                </div>
-
-                <div className="stat-card">
-                    {requests.length} Total Requests
-                </div>
-
-                <div className="stat-card">
-                    {
-                        requests.filter((r) => r.status === 'Resolved')
-                            .length
-                    }{' '}
-                    Resolved
-                </div>
-            </section>
-
-            {/* Management Actions (from Code 1) */}
-            <section className="admin-actions">
-                <h2>Management</h2>
-                <button>Manage Users</button>
-                <button>View All Reports</button>
-                <button>Assign Workers</button>
-            </section>
-
-            {/* Requests Table/List (from Code 2, enhanced UI) */}
-            <section className="dashboard-section">
-                <h2>All Service Requests</h2>
-
-                {requests.length === 0 ? (
-                    <p>No requests found.</p>
-                ) : (
-                    <ul className="worker-request-list">
-                        {requests.map((req) => (
-                            <li key={req.id}>
-                                <article className="worker-request-card">
-                                    <header className="worker-request-header">
-                                        <h3>{req.category}</h3>
-
-                                        <span className={`status ${req.status}`}>
-                                            {req.status}
-                                        </span>
-                                    </header>
-
-                                    <p>{req.location}</p>
-
-                                    {/* Assignment control */}
-                                    {!req.assigned && (
-                                        <footer className="worker-actions">
-                                            <select
-                                                defaultValue=""
-                                                onChange={(e) =>
-                                                    handleAssign(req.id, e.target.value)
-                                                }
-                                            >
-                                                <option value="" disabled>
-                                                    Assign to staff...
-                                                </option>
-
-                                                {staffList.map((s) => (
-                                                    <option key={s.id} value={s.id}>
-                                                        {s.full_name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </footer>
-                                    )}
-                                </article>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
-        </article>
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <div style={{ color: '#dc2626', fontSize: '24px', marginBottom: '16px' }}>❌</div>
+        <h2 style={{ color: '#991b1b' }}>Sign In Failed</h2>
+        <p style={{ color: '#666' }}>{error}</p>
+        <button 
+          onClick={() => navigate('/signin')}
+          style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer' }}
+        >
+          Back to Sign In
+        </button>
+      </div>
     );
+  }
+
+  return (
+    <div style={{ padding: '40px', textAlign: 'center' }}>
+      <div style={{ fontSize: '40px', marginBottom: '16px' }}>🔄</div>
+      <h2>{status}</h2>
+      <p style={{ color: '#666' }}>Please wait while we complete your sign in...</p>
+    </div>
+  );
 }
 
-export default AdminDashboardPage;
+export default AuthCallbackPage;

@@ -31,16 +31,16 @@ function SignInPage() {
       return;
     }
 
-    // After login, check role and redirect
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role:roles(name)')
-      .eq('user_id', data.user.id)
+    // Get role from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
       .single();
 
-    const userRole = roleData?.role?.name || 'user';
+    const userRole = profile?.role || 'user';
 
-    // Redirect based on actual role from database
+    // Redirect based on role from database
     switch (userRole) {
       case 'user':
         navigate('/resident/dashboard');
@@ -60,10 +60,6 @@ function SignInPage() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
-
-    // Store the selected role in sessionStorage (clears when tab closes)
-    // This is more secure than localStorage for temporary data
-    sessionStorage.setItem('pendingRole', role);
 
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -86,12 +82,14 @@ function SignInPage() {
       </header>
 
       <div className="signin-container">
-        {/* Role Selector */}
+        {/* Role Selector - PLACEHOLDER BUTTONS (non-functional, to be removed later) */}
         <div className="role-selector">
           <button
             type="button"
             className={`role-option ${role === 'resident' ? 'active' : ''}`}
             onClick={() => setRole('resident')}
+            disabled
+            style={{ opacity: 0.6, cursor: 'not-allowed' }}
           >
             🏠 Resident
           </button>
@@ -99,6 +97,8 @@ function SignInPage() {
             type="button"
             className={`role-option ${role === 'worker' ? 'active' : ''}`}
             onClick={() => setRole('worker')}
+            disabled
+            style={{ opacity: 0.6, cursor: 'not-allowed' }}
           >
             🔧 Worker
           </button>
@@ -106,10 +106,15 @@ function SignInPage() {
             type="button"
             className={`role-option ${role === 'admin' ? 'active' : ''}`}
             onClick={() => setRole('admin')}
+            disabled
+            style={{ opacity: 0.6, cursor: 'not-allowed' }}
           >
             📊 Admin
           </button>
         </div>
+        <p style={{ fontSize: '12px', color: '#888', textAlign: 'center', marginTop: '-10px', marginBottom: '15px' }}>
+          (Role selection disabled - access controlled by admin)
+        </p>
 
         {/* Error message */}
         {error && (
