@@ -13,12 +13,13 @@ function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  // Email/Password Sign In
+  const handleEmailSignIn = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -30,12 +31,21 @@ function SignInPage() {
       return;
     }
 
-    // Navigate to the right dashboard based on selected role
-    switch (role) {
-      case 'resident':
+    // Get role from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single();
+
+    const userRole = profile?.role || 'user';
+
+    // Redirect based on role from database
+    switch (userRole) {
+      case 'user':
         navigate('/resident/dashboard');
         break;
-      case 'worker':
+      case 'staff':
         navigate('/worker/dashboard');
         break;
       case 'admin':
@@ -43,6 +53,24 @@ function SignInPage() {
         break;
       default:
         navigate('/');
+    }
+  };
+
+  // Google Sign In
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setError('');
+
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+
+    if (authError) {
+      setError(authError.message);
+      setLoading(false);
     }
   };
 
@@ -54,39 +82,51 @@ function SignInPage() {
       </header>
 
       <div className="signin-container">
-        {/* Role Selector */}
+        {/* Role Selector - PLACEHOLDER BUTTONS (non-functional, to be removed later) */}
         <div className="role-selector">
           <button
+            type="button"
             className={`role-option ${role === 'resident' ? 'active' : ''}`}
             onClick={() => setRole('resident')}
+            disabled
+            style={{ opacity: 0.6, cursor: 'not-allowed' }}
           >
             🏠 Resident
           </button>
           <button
+            type="button"
             className={`role-option ${role === 'worker' ? 'active' : ''}`}
             onClick={() => setRole('worker')}
+            disabled
+            style={{ opacity: 0.6, cursor: 'not-allowed' }}
           >
             🔧 Worker
           </button>
           <button
+            type="button"
             className={`role-option ${role === 'admin' ? 'active' : ''}`}
             onClick={() => setRole('admin')}
+            disabled
+            style={{ opacity: 0.6, cursor: 'not-allowed' }}
           >
             📊 Admin
           </button>
         </div>
+        <p style={{ fontSize: '12px', color: '#888', textAlign: 'center', marginTop: '-10px', marginBottom: '15px' }}>
+          (Role selection disabled - access controlled by admin)
+        </p>
 
         {/* Error message */}
         {error && (
-          <div style={{ background: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
+          <div className="error-message" style={{ background: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem' }}>
             {error}
           </div>
         )}
 
-        {/* Sign In Form */}
-        <form onSubmit={handleSubmit} className="signin-form">
+        {/* Email/Password Form */}
+        <form onSubmit={handleEmailSignIn} className="signin-form">
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="email">Username or email address</label>
             <input
               type="email"
               id="email"
@@ -107,12 +147,33 @@ function SignInPage() {
               placeholder="••••••••"
               required
             />
+            <Link to="/forgot-password" className="forgot-password">Forgot password?</Link>
           </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? 'Signing in...' : `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        {/* Divider */}
+        <div className="divider">
+          <span>or</span>
+        </div>
+
+        {/* Google Sign In Button */}
+        <button 
+          onClick={handleGoogleSignIn} 
+          className="google-signin-btn"
+          disabled={loading}
+        >
+          <img 
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+            alt="Google logo" 
+            width="20" 
+            height="20"
+          />
+          Continue with Google
+        </button>
 
         <div className="signin-footer">
           <p>Don't have an account? <Link to="/register">Register here</Link></p>

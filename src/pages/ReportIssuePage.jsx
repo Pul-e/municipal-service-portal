@@ -1,31 +1,50 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import MapPlaceholder from '../components/MapPlaceholder';
+import InteractiveMap from '../components/InteractiveMap';
 
 function ReportIssuePage() {
   const navigate = useNavigate();
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Handle location selection from the map
+  const handleLocationSelect = (location) => {
+    setSelectedLocation(location);
+    console.log('Location selected:', location); // { lat: -26.195, lng: 28.034 }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    // Validate location was selected
+    if (!selectedLocation) {
+      setError('Please click on the map to select your location');
+      setLoading(false);
+      return;
+    }
+
     // Get the currently logged-in user
     const { data: { user } } = await supabase.auth.getUser();
+
+    // Prepare location string or point for database
+    const locationText = `Lat: ${selectedLocation.lat.toFixed(6)}, Lng: ${selectedLocation.lng.toFixed(6)}`;
+    const locationPoint = `POINT(${selectedLocation.lng} ${selectedLocation.lat})`;
 
     const { error: insertError } = await supabase
       .from('service_requests')
       .insert({
         category,
         description,
-        location: 'Ward 58',
-        status: 'Pending',
-        user_id: user?.id || null,
+        location: locationText,  // Human-readable location
+        location_point: locationPoint,  // PostGIS point (if column exists)
+        status: 'Acknowledged',  // Changed from 'Pending' to match brief
+        resident_id: user?.id || null,
       });
 
     setLoading(false);
@@ -34,7 +53,7 @@ function ReportIssuePage() {
       setError('Failed to submit report: ' + insertError.message);
     } else {
       alert('Report submitted successfully!');
-      navigate('/resident/my-requests');
+      navigate('/my-requests');
     }
   };
 
@@ -101,30 +120,43 @@ function ReportIssuePage() {
           </div>
         </fieldset>
 
-        {/* Location Fieldset */}
+        {/* Location Fieldset - NOW WITH INTERACTIVE MAP */}
         <fieldset className="form-group">
           <legend>Location</legend>
 
           <div className="form-field">
-            <label>Select Location *</label>
-            <figure>
-              <MapPlaceholder interactive={true} />
-              <figcaption className="location-info">
-                <div className="location-detail">
-                  <strong>🏛️ Municipality:</strong> City of Johannesburg Metropolitan
-                </div>
-                <div className="location-detail">
-                  <strong>📍 Ward:</strong> Ward 58
-                </div>
-                <div className="location-detail source">
-                  <strong>🗺️ Data Source:</strong> Municipal Demarcation Board (MDB) 2024
-                </div>
-              </figcaption>
-            </figure>
+            <label>Click on the map to select your location *</label>
+            <InteractiveMap onLocationSelect={handleLocationSelect} />
+            
+            {selectedLocation && (
+              <div className="location-info" style={{ marginTop: '10px', padding: '8px', background: '#e8f5e9', borderRadius: '4px' }}>
+                <strong>✅ Selected location:</strong>
+                <br />
+                Latitude: {selectedLocation.lat.toFixed(6)}
+                <br />
+                Longitude: {selectedLocation.lng.toFixed(6)}
+              </div>
+            )}
           </div>
+
+          <figcaption className="location-info">
+            <div className="location-detail">
+              <strong>🏛️ Municipality:</strong> City of Johannesburg Metropolitan
+            </div>
+            <div className="location-detail">
+              <strong>📍 Ward:</strong> Automatically detected from map click
+            </div>
+            <div className="location-detail source">
+              <strong>🗺️ Data Source:</strong> Municipal Demarcation Board (MDB) 2024
+            </div>
+          </figcaption>
         </fieldset>
 
-        <button type="submit" className="submit-btn" disabled={loading}>
+        <button 
+          type="submit" 
+          className="submit-btn" 
+          disabled={loading || !selectedLocation}
+        >
           {loading ? 'Submitting...' : 'Submit Report'}
         </button>
 

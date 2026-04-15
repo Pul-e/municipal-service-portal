@@ -7,6 +7,7 @@ import ReportIssuePage from './pages/ReportIssuePage';
 import MyRequestsPage from './pages/MyRequestsPage';
 import WorkerDashboardPage from './pages/WorkerDashboardPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
       
       <main className="main-content">
         <Routes>
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
           {/* Public Routes */}
           <Route path="/" element={<PublicDashboardPage />} />
           <Route path="/signin" element={<SignInPage />} />
