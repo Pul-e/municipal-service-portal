@@ -44,7 +44,7 @@ function ReportIssuePage() {
         location: locationText,  // Human-readable location
         location_point: locationPoint,  // PostGIS point (if column exists)
         status: 'Acknowledged',  // Changed from 'Pending' to match brief
-        resident_id: user?.id || null,
+        user_id: user?.id || null,
       });
 
     setLoading(false);
