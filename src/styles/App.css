@@ -384,6 +384,16 @@ body {
   text-align: center;
 }
 
+/* Error Message */
+.error-message {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
 /* Divider */
 .divider {
   display: flex;
@@ -410,7 +420,7 @@ body {
 }
 
 /* Google Sign In Button */
-.google-signin-btn {
+.google-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -427,32 +437,49 @@ body {
   transition: background 0.2s;
 }
 
-.google-signin-btn:hover {
+.google-btn:hover:not(:disabled) {
   background: #f5f5f5;
 }
 
-.google-signin-btn:disabled {
+.google-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.google-signin-btn img {
-  width: 20px;
-  height: 20px;
+.google-icon {
+  font-weight: bold;
+  color: #4285f4;
 }
 
 /* Forgot password link */
 .forgot-password {
-  display: block;
   text-align: right;
-  font-size: 12px;
-  margin-top: 5px;
-  color: #666;
-  text-decoration: none;
+  margin-bottom: 1.5rem;
 }
 
-.forgot-password:hover {
+.forgot-password a {
+  color: #666;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.forgot-password a:hover {
+  color: #1a4d2e;
   text-decoration: underline;
+}
+
+/* Staff Note */
+.staff-note {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.staff-note p {
+  margin: 0.25rem 0;
 }
 
 /* ============================================
@@ -571,8 +598,13 @@ body {
   width: 100%;
 }
 
-.submit-btn:hover {
+.submit-btn:hover:not(:disabled) {
   background-color: #2d6a4f;
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .location-info {

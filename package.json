@@ -21,6 +21,7 @@
   },
   "description": "",
   "devDependencies": {
+    "@types/leaflet": "^1.9.21",
     "jest": "^30.3.0"
   },
   "dependencies": {
