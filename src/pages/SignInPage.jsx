@@ -16,15 +16,55 @@ function SignInPage() {
     setError('');
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
-      if (error) throw error;
+      if (signInError) throw signInError;
       
-      // Redirect to resident dashboard after successful login
-      navigate('/resident/dashboard');
+      // Get the user's role from the profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        // If no profile exists, create one with default role 'user'
+        if (profileError.code === 'PGRST116') {
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email: data.user.email,
+              full_name: data.user.email,
+              role: 'user'
+            });
+          
+          if (!insertError) {
+            navigate('/resident/dashboard');
+            return;
+          }
+        }
+        throw new Error('Could not determine user role');
+      }
+      
+      // Redirect based on role from database
+      switch (profile.role) {
+        case 'admin':
+          navigate('/admin/dashboard');
+          break;
+        case 'staff':
+          navigate('/worker/dashboard');
+          break;
+        case 'user':
+        default:
+          navigate('/resident/dashboard');
+          break;
+      }
+      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -37,7 +77,7 @@ function SignInPage() {
     setError('');
     
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -59,8 +99,6 @@ function SignInPage() {
       </header>
 
       <div className="signin-container">
-        {/* Simple Resident Sign In - No Role Selector */}
-        
         {error && (
           <div className="error-message" role="alert">
             {error}
@@ -127,7 +165,6 @@ function SignInPage() {
           <p><Link to="/">← Back to public dashboard</Link></p>
         </div>
 
-        {/* Worker/Admin Note */}
         <div className="staff-note">
           <p>🔧 Are you a municipal worker or administrator?</p>
           <p>Please use the staff portal or contact your system administrator for access.</p>
