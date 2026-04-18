@@ -13,37 +13,35 @@ function ReportIssuePage() {
   const [wardInfo, setWardInfo] = useState(null);
 
   // Handle location selection from the map
-  const handleLocationSelect = (location) => {
-  setSelectedLocation(location);
-  console.log('Location selected:', location);
-  console.log('About to fetch from backend...');
-  
-  // Call backend
-  fetch(`http://localhost:5000/api/wards/test-lookup?lat=${location.lat}&lng=${location.lng}`)
-    .then(res => res.json())
-    .then(data => {
-      console.log('GOT DATA:', data);
+  const handleLocationSelect = async (location) => {
+    setSelectedLocation(location);
+    
+    // Fetch ward information from backend (SA Data Integration)
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/wards/test-lookup?lat=${location.lat}&lng=${location.lng}`
+      );
+      const data = await response.json();
       setWardInfo(data);
-    })
-    .catch(err => console.error('FETCH ERROR:', err));
-};
+    } catch (error) {
+      console.error('Failed to fetch ward info:', error);
+      // Still set location even if ward lookup fails
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    // Validate location was selected
     if (!selectedLocation) {
       setError('Please click on the map to select your location');
       setLoading(false);
       return;
     }
 
-    // Get the currently logged-in user
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Prepare location string or point for database
     const locationText = `Lat: ${selectedLocation.lat.toFixed(6)}, Lng: ${selectedLocation.lng.toFixed(6)}`;
     const locationPoint = `POINT(${selectedLocation.lng} ${selectedLocation.lat})`;
 
@@ -56,6 +54,7 @@ function ReportIssuePage() {
         location_point: locationPoint,
         status: 'Acknowledged',
         user_id: user?.id || null,
+        ward: wardInfo?.ward_number || null,
       });
 
     setLoading(false);
@@ -135,17 +134,6 @@ function ReportIssuePage() {
           <div className="form-field">
             <label>Click on the map to select your location *</label>
             <InteractiveMap onLocationSelect={handleLocationSelect} />
-            {/* TEMPORARY TEST BUTTON */}
-            <button 
-              type="button"
-              onClick={() => {
-                const testLocation = { lat: -26.195, lng: 28.034 };
-                handleLocationSelect(testLocation);
-              }}
-              style={{ marginTop: '10px', padding: '8px', background: '#FFA500', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-            >
-              🧪 TEST: Simulate Click on Sandton
-            </button>
             
             {selectedLocation && (
               <div className="location-info" style={{ marginTop: '10px', padding: '8px', background: '#e8f5e9', borderRadius: '4px' }}>
@@ -158,7 +146,7 @@ function ReportIssuePage() {
                 {wardInfo && (
                   <>
                     <br />
-                    <strong>🏛️ Ward (from backend):</strong> {wardInfo.ward_number} - {wardInfo.municipality}
+                    <strong>🏛️ Ward (auto-detected):</strong> {wardInfo.ward_number} - {wardInfo.municipality}
                     <br />
                     <span style={{ fontSize: '0.9em', color: '#666' }}>
                       Data source: {wardInfo.data_source}
@@ -168,18 +156,6 @@ function ReportIssuePage() {
               </div>
             )}
           </div>
-
-          <figcaption className="location-info">
-            <div className="location-detail">
-              <strong>🏛️ Municipality:</strong> City of Johannesburg Metropolitan
-            </div>
-            <div className="location-detail">
-              <strong>📍 Ward:</strong> Automatically detected from map click
-            </div>
-            <div className="location-detail source">
-              <strong>🗺️ Data Source:</strong> Municipal Demarcation Board (MDB) 2024
-            </div>
-          </figcaption>
         </fieldset>
 
         <button 
