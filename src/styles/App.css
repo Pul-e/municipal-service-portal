@@ -1105,3 +1105,155 @@ textarea:focus-visible {
     justify-content: center;
   }
 }
+/* ============================================
+   MANAGE USERS PAGE
+   ============================================ */
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.admin-stats .stat-card {
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.success-message {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.users-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #1a4d2e;
+}
+
+.users-table tr:hover {
+  background: #f8f9fa;
+}
+
+.role-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.role-resident {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.role-worker {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.role-admin {
+  background: #e9d5ff;
+  color: #6b21a8;
+}
+
+.role-select {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.role-select:hover {
+  border-color: #1a4d2e;
+}
+
+.admin-protected {
+  color: #999;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.refresh-section {
+  margin-top: 1.5rem;
+  text-align: right;
+}
+
+.secondary-btn {
+  background: white;
+  color: #1a4d2e;
+  border: 1px solid #1a4d2e;
+  padding: 0.5rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.secondary-btn:hover {
+  background: #1a4d2e;
+  color: white;
+}
+
+.management-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.management-btn {
+  background: white;
+  color: #1a4d2e;
+  border: 1px solid #1a4d2e;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-block;
+  text-align: center;
+}
+
+.management-btn:hover {
+  background: #1a4d2e;
+  color: white;
+}
+
+.users-table-section {
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .admin-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .management-buttons {
+    flex-direction: column;
+  }
+}

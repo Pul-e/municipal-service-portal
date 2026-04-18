@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 function AdminDashboardPage() {
@@ -95,22 +96,33 @@ function AdminDashboardPage() {
             {/* Stats Section */}
             <section className="admin-stats">
                 <div className="stat-card">
-                    {staffList.length} Total Staff
+                    <span className="stat-value">{staffList.length}</span>
+                    <span className="stat-label">Total Staff</span>
                 </div>
                 <div className="stat-card">
-                    {requests.length} Total Requests
+                    <span className="stat-value">{requests.length}</span>
+                    <span className="stat-label">Total Requests</span>
                 </div>
                 <div className="stat-card">
-                    {requests.filter((r) => r.status === 'Resolved').length} Resolved
+                    <span className="stat-value">{requests.filter((r) => r.status === 'Resolved').length}</span>
+                    <span className="stat-label">Resolved</span>
                 </div>
             </section>
 
             {/* Management Actions */}
             <section className="admin-actions">
                 <h2>Management</h2>
-                <button>Manage Users</button>
-                <button>View All Reports</button>
-                <button>Assign Workers</button>
+                <div className="management-buttons">
+                    <Link to="/admin/users" className="management-btn">
+                        👥 Manage Users
+                    </Link>
+                    <button className="management-btn">
+                        📋 View All Reports
+                    </button>
+                    <button className="management-btn">
+                        🔧 Assign Workers
+                    </button>
+                </div>
             </section>
 
             {/* Requests Table/List */}
