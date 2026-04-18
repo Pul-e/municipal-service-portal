@@ -10,12 +10,23 @@ function ReportIssuePage() {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [wardInfo, setWardInfo] = useState(null);
 
   // Handle location selection from the map
   const handleLocationSelect = (location) => {
-    setSelectedLocation(location);
-    console.log('Location selected:', location); // { lat: -26.195, lng: 28.034 }
-  };
+  setSelectedLocation(location);
+  console.log('Location selected:', location);
+  console.log('About to fetch from backend...');
+  
+  // Call backend
+  fetch(`http://localhost:5000/api/wards/test-lookup?lat=${location.lat}&lng=${location.lng}`)
+    .then(res => res.json())
+    .then(data => {
+      console.log('GOT DATA:', data);
+      setWardInfo(data);
+    })
+    .catch(err => console.error('FETCH ERROR:', err));
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,9 +52,9 @@ function ReportIssuePage() {
       .insert({
         category,
         description,
-        location: locationText,  // Human-readable location
-        location_point: locationPoint,  // PostGIS point (if column exists)
-        status: 'Acknowledged',  // Changed from 'Pending' to match brief
+        location: locationText,
+        location_point: locationPoint,
+        status: 'Acknowledged',
         user_id: user?.id || null,
       });
 
@@ -65,14 +76,12 @@ function ReportIssuePage() {
 
       <form onSubmit={handleSubmit} className="report-form" aria-label="Service issue report form">
 
-        {/* Show error if submission fails */}
         {error && (
           <div style={{ background: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem' }}>
             {error}
           </div>
         )}
 
-        {/* Category Fieldset */}
         <fieldset className="form-group">
           <legend>Issue Details</legend>
 
@@ -120,13 +129,23 @@ function ReportIssuePage() {
           </div>
         </fieldset>
 
-        {/* Location Fieldset - NOW WITH INTERACTIVE MAP */}
         <fieldset className="form-group">
           <legend>Location</legend>
 
           <div className="form-field">
             <label>Click on the map to select your location *</label>
             <InteractiveMap onLocationSelect={handleLocationSelect} />
+            {/* TEMPORARY TEST BUTTON */}
+            <button 
+              type="button"
+              onClick={() => {
+                const testLocation = { lat: -26.195, lng: 28.034 };
+                handleLocationSelect(testLocation);
+              }}
+              style={{ marginTop: '10px', padding: '8px', background: '#FFA500', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              🧪 TEST: Simulate Click on Sandton
+            </button>
             
             {selectedLocation && (
               <div className="location-info" style={{ marginTop: '10px', padding: '8px', background: '#e8f5e9', borderRadius: '4px' }}>
@@ -135,6 +154,17 @@ function ReportIssuePage() {
                 Latitude: {selectedLocation.lat.toFixed(6)}
                 <br />
                 Longitude: {selectedLocation.lng.toFixed(6)}
+                
+                {wardInfo && (
+                  <>
+                    <br />
+                    <strong>🏛️ Ward (from backend):</strong> {wardInfo.ward_number} - {wardInfo.municipality}
+                    <br />
+                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                      Data source: {wardInfo.data_source}
+                    </span>
+                  </>
+                )}
               </div>
             )}
           </div>
