@@ -19,7 +19,7 @@ function ReportIssuePage() {
     // Fetch ward information from backend (SA Data Integration)
     try {
       const response = await fetch(
-        `http://localhost:5000/api/wards/test-lookup?lat=${location.lat}&lng=${location.lng}`
+        `http://localhost:5000/api/wards/lookup?lat=${location.lat}&lng=${location.lng}`
       );
       const data = await response.json();
       setWardInfo(data);
@@ -30,42 +30,50 @@ function ReportIssuePage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+  e.preventDefault();
+  setLoading(true);
+  setError('');
 
-    if (!selectedLocation) {
-      setError('Please click on the map to select your location');
-      setLoading(false);
-      return;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-
-    const locationText = `Lat: ${selectedLocation.lat.toFixed(6)}, Lng: ${selectedLocation.lng.toFixed(6)}`;
-    const locationPoint = `POINT(${selectedLocation.lng} ${selectedLocation.lat})`;
-
-    const { error: insertError } = await supabase
-      .from('service_requests')
-      .insert({
-        category,
-        description,
-        location: locationText,
-        location_point: locationPoint,
-        status: 'Acknowledged',
-        user_id: user?.id || null,
-        ward: wardInfo?.ward_number || null,
-      });
-
+  if (!selectedLocation) {
+    setError('Please click on the map to select your location');
     setLoading(false);
+    return;
+  }
 
-    if (insertError) {
-      setError('Failed to submit report: ' + insertError.message);
-    } else {
-      alert('Report submitted successfully!');
-      navigate('/my-requests');
-    }
-  };
+  // Get the current user FIRST
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+
+  if (!userId) {
+    setError('You must be signed in to submit a report');
+    setLoading(false);
+    return;
+  }
+
+  const locationText = `Lat: ${selectedLocation.lat.toFixed(6)}, Lng: ${selectedLocation.lng.toFixed(6)}`;
+  const locationPoint = `POINT(${selectedLocation.lng} ${selectedLocation.lat})`;
+
+  const { error: insertError } = await supabase
+    .from('service_requests')
+    .insert({
+      category,
+      description,
+      location: locationText,
+      location_point: locationPoint,
+      status: 'Acknowledged',
+      user_id: userId,  // Use the captured userId
+      ward: wardInfo?.ward_number || null,
+    });
+
+  setLoading(false);
+
+  if (insertError) {
+    setError('Failed to submit report: ' + insertError.message);
+  } else {
+    alert('Report submitted successfully!');
+    navigate('/my-requests');
+  }
+};
 
   return (
     <article className="page-container">
