@@ -8,6 +8,7 @@ import MyRequestsPage from './pages/MyRequestsPage';
 import WorkerDashboardPage from './pages/WorkerDashboardPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
+import ManageUsersPage from './pages/admin/ManageUsersPage';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           
           {/* Admin Routes (Protected - Sprint 2) */}
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+          <Route path="/admin/users" element={<ManageUsersPage />} />
         </Routes>
       </main>
     </div>
