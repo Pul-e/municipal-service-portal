@@ -13,25 +13,32 @@ function ReportIssuePage() {
   const [wardInfo, setWardInfo] = useState(null);
 
   // Handle location selection from the map
-  const handleLocationSelect = async (location) => {
-    setSelectedLocation(location);
+const handleLocationSelect = async (location) => {
+  setSelectedLocation(location);
+  
+  try {
+    // Call Supabase RPC directly (no backend needed)
+    const { data, error } = await supabase
+      .rpc('get_ward_from_location', { 
+        lat: location.lat, 
+        lng: location.lng 
+      });
     
-    // Fetch ward information from backend (SA Data Integration)
-    try {
-      const response = await fetch(
-  `http://localhost:5001/api/wards/lookup?lat=${location.lat}&lng=${location.lng}`
-);
-      const data = await response.json();
-      if (response.ok) {
-        setWardInfo(data);
-      } else {
-        setWardInfo(null);
-      }
-    } catch (error) {
-      console.error('Failed to fetch ward info:', error);
+    if (data && data.length > 0) {
+      setWardInfo({
+        ward_number: data[0].ward_no,
+        municipality: data[0].municipali,
+        province: data[0].province,
+        ward_id: data[0].ward_id
+      });
+    } else {
       setWardInfo(null);
     }
-  };
+  } catch (error) {
+    console.error('Failed to fetch ward info:', error);
+    setWardInfo(null);
+  }
+};
 
 const handleSubmit = async (e) => {
   e.preventDefault();
