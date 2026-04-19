@@ -19,17 +19,21 @@ function ReportIssuePage() {
     // Fetch ward information from backend (SA Data Integration)
     try {
       const response = await fetch(
-        `http://localhost:5000/api/wards/lookup?lat=${location.lat}&lng=${location.lng}`
-      );
+  `http://localhost:5001/api/wards/lookup?lat=${location.lat}&lng=${location.lng}`
+);
       const data = await response.json();
-      setWardInfo(data);
+      if (response.ok) {
+        setWardInfo(data);
+      } else {
+        setWardInfo(null);
+      }
     } catch (error) {
       console.error('Failed to fetch ward info:', error);
-      // Still set location even if ward lookup fails
+      setWardInfo(null);
     }
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
   e.preventDefault();
   setLoading(true);
   setError('');
@@ -40,7 +44,7 @@ function ReportIssuePage() {
     return;
   }
 
-  // Get the current user FIRST
+  // Get the current user
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
 
@@ -53,17 +57,17 @@ function ReportIssuePage() {
   const locationText = `Lat: ${selectedLocation.lat.toFixed(6)}, Lng: ${selectedLocation.lng.toFixed(6)}`;
   const locationPoint = `POINT(${selectedLocation.lng} ${selectedLocation.lat})`;
 
-  const { error: insertError } = await supabase
-    .from('service_requests')
-    .insert({
-      category,
-      description,
-      location: locationText,
-      location_point: locationPoint,
-      status: 'Acknowledged',
-      user_id: userId,  // Use the captured userId
-      ward: wardInfo?.ward_number || null,
-    });
+const { error: insertError } = await supabase
+  .from('service_requests')
+  .insert({
+    category,
+    description,
+    location: locationText,
+    location_point: locationPoint,
+    status: 'Acknowledged',
+    user_id: userId,
+    ward: String(wardInfo?.ward_number || ''),  // Convert to string explicitly
+  });
 
   setLoading(false);
 
@@ -99,7 +103,6 @@ function ReportIssuePage() {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               required
-              aria-required="true"
             >
               <option value="">-- Select an issue type --</option>
               <option value="pothole">🕳️ Pothole</option>
@@ -120,19 +123,12 @@ function ReportIssuePage() {
               placeholder="Please describe the issue in detail..."
               rows="4"
               required
-              aria-required="true"
             />
           </div>
 
           <div className="form-field">
             <label htmlFor="photo">Upload Photo (Optional)</label>
-            <input
-              type="file"
-              id="photo"
-              accept="image/*"
-              className="file-input"
-              aria-label="Upload a photo of the issue"
-            />
+            <input type="file" id="photo" accept="image/*" className="file-input" />
           </div>
         </fieldset>
 
@@ -151,13 +147,21 @@ function ReportIssuePage() {
                 <br />
                 Longitude: {selectedLocation.lng.toFixed(6)}
                 
-                {wardInfo && (
+                {wardInfo && wardInfo.ward_number && (
                   <>
                     <br />
-                    <strong>🏛️ Ward (auto-detected):</strong> {wardInfo.ward_number} - {wardInfo.municipality}
+                    <strong>🏛️ Ward (auto-detected):</strong> Ward {wardInfo.ward_number} - {wardInfo.municipality}
                     <br />
                     <span style={{ fontSize: '0.9em', color: '#666' }}>
                       Data source: {wardInfo.data_source}
+                    </span>
+                  </>
+                )}
+                {!wardInfo && (
+                  <>
+                    <br />
+                    <span style={{ fontSize: '0.9em', color: '#e67e22' }}>
+                      ⚠️ No ward found for this location (outside South Africa?)
                     </span>
                   </>
                 )}

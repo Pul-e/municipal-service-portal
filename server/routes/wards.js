@@ -17,59 +17,36 @@ router.get('/lookup', async (req, res) => {
       });
     }
 
-    // Try PostGIS spatial query first (will work once geometry is imported)
-    const point = `ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)`;
-    
+    // Use the PostGIS function to find which ward contains this point
     const { data, error } = await supabase
-      .from('wards')
-      .select('"WardNo", "Municipali", "WardLabel", "Province"')
-      .filter('geom', 'st_contains', point);
+      .rpc('get_ward_from_location', { 
+        lat: parseFloat(lat), 
+        lng: parseFloat(lng) 
+      });
 
-    if (!error && data && data.length > 0) {
-      // REAL SPATIAL QUERY WORKED!
-      return res.json({
-        ward_number: data[0].WardNo,
-        municipality: data[0].Municipali,
-        ward_name: data[0].WardLabel,
-        province: data[0].Province,
-        coordinates: { lat: parseFloat(lat), lng: parseFloat(lng) },
-        data_source: 'Municipal Demarcation Board (MDB) 2024 - Live Spatial Query',
-        lookup_timestamp: new Date().toISOString()
+    if (error) {
+      console.error('Spatial query error:', error);
+      return res.status(500).json({ 
+        error: 'Failed to lookup ward from coordinates' 
       });
     }
 
-    // Fallback: Return a ward based on coordinates (for demo until geometry is imported)
-    // This proves the API works even without spatial data
-    let fallbackWard = {
-      ward_number: '58',
-      municipality: 'City of Johannesburg',
-      ward_name: 'Ward 58',
-      province: 'Gauteng'
-    };
-
-    // Simple coordinate-based fallback for major cities
-    if (lng > 18.0 && lng < 19.0 && lat < -33.0 && lat > -34.5) {
-      fallbackWard = {
-        ward_number: '115',
-        municipality: 'City of Cape Town',
-        ward_name: 'Ward 115',
-        province: 'Western Cape'
-      };
-    } else if (lng > 30.0 && lng < 32.0 && lat < -29.0 && lat > -30.0) {
-      fallbackWard = {
-        ward_number: '33',
-        municipality: 'eThekwini',
-        ward_name: 'Ward 33',
-        province: 'KwaZulu-Natal'
-      };
+    if (!data || data.length === 0) {
+      return res.status(404).json({ 
+        message: 'No ward found for these coordinates',
+        coordinates: { lat: parseFloat(lat), lng: parseFloat(lng) }
+      });
     }
 
     return res.json({
-      ...fallbackWard,
+      ward_number: data[0].ward_no,
+      municipality: data[0].municipali,
+      ward_name: data[0].ward_label,
+      province: data[0].province,
+      ward_id: data[0].ward_id,
       coordinates: { lat: parseFloat(lat), lng: parseFloat(lng) },
-      data_source: 'Municipal Demarcation Board (MDB) 2024 - Attribute Fallback',
-      lookup_timestamp: new Date().toISOString(),
-      note: 'Spatial geometry import pending. Using attribute-based fallback for demo.'
+      data_source: 'Municipal Demarcation Board (MDB) 2024 - Live Spatial Query',
+      lookup_timestamp: new Date().toISOString()
     });
 
   } catch (error) {
@@ -84,26 +61,30 @@ router.get('/lookup', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { supabase } = req.app.locals;
+    const { limit = 100, offset = 0 } = req.query;
     
-    const { data, error } = await supabase
+    const { data, error, count } = await supabase
       .from('wards')
-      .select('"WardNo", "Municipali", "WardLabel", "Province"')
-      .order('Municipali')
-      .order('WardNo')
-      .limit(100); // Limit to avoid overwhelming response
+      .select('id, ward_id, ward_no, municipali, province, ward_label', { count: 'exact' })
+      .order('municipali')
+      .order('ward_no')
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
     if (error) throw error;
 
     const mappedData = data.map(w => ({
-      ward_number: w.WardNo,
-      municipality: w.Municipali,
-      ward_name: w.WardLabel,
-      province: w.Province
+      id: w.id,
+      ward_id: w.ward_id,
+      ward_number: w.ward_no,
+      municipality: w.municipali,
+      ward_name: w.ward_label,
+      province: w.province
     }));
 
     res.json({
-      total: data.length,
-      total_in_database: 4468, // Hardcoded from your count
+      total: count,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
       wards: mappedData,
       data_source: 'Municipal Demarcation Board (MDB) 2024'
     });
@@ -111,6 +92,46 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Error fetching wards:', error);
     res.status(500).json({ error: 'Failed to fetch wards' });
+  }
+});
+
+/**
+ * Get a single ward by ID or ward number
+ */
+router.get('/:identifier', async (req, res) => {
+  try {
+    const { supabase } = req.app.locals;
+    const { identifier } = req.params;
+    
+    let query = supabase
+      .from('wards')
+      .select('id, ward_id, ward_no, municipali, province, ward_label, district');
+    
+    if (!isNaN(parseInt(identifier))) {
+      query = query.eq('id', parseInt(identifier));
+    } else {
+      query = query.eq('ward_id', identifier);
+    }
+    
+    const { data, error } = await query.single();
+
+    if (error) throw error;
+
+    res.json({
+      ward: {
+        id: data.id,
+        ward_id: data.ward_id,
+        ward_number: data.ward_no,
+        municipality: data.municipali,
+        province: data.province,
+        ward_name: data.ward_label,
+        district: data.district
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching ward:', error);
+    res.status(404).json({ error: 'Ward not found' });
   }
 });
 
@@ -125,7 +146,7 @@ router.get('/:wardNumber/requests', async (req, res) => {
     const { data, error } = await supabase
       .from('service_requests')
       .select('*')
-      .eq('ward', wardNumber)
+      .eq('ward_no', wardNumber)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
