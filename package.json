@@ -5,8 +5,8 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
+    "test": "react-scripts test --watchAll=false",
+    "test:coverage": "react-scripts test --coverage --watchAll=false",
     "eject": "react-scripts eject"
   },
   "repository": {
@@ -21,6 +21,9 @@
   },
   "description": "",
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/leaflet": "^1.9.21",
     "jest": "^30.3.0"
   },
@@ -30,7 +33,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-leaflet": "^5.0.0",
-    "react-router-dom": "^7.14.0",
+    "react-router-dom": "^7.14.1",
     "react-scripts": "^5.0.1"
   },
   "browserslist": {
