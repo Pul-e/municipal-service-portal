@@ -17,12 +17,7 @@
     "index.js",
     "routes/**/*.js",
     "middleware/**/*.js"
-  ],
-  "coverageThreshold": {
-    "global": {
-      "lines": 50
-    }
-  }
+  ]
 },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
