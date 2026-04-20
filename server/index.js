@@ -31,8 +31,8 @@ app.use('/api/requests', requestsRouter);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
+  res.json({
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'Municipal Service Delivery API'
   });
@@ -44,9 +44,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📍 Health check: http://localhost:${PORT}/health`);
+  });
+}
 
 module.exports = app;

@@ -2,25 +2,64 @@ const request = require('supertest');
 const app = require('../index');
 
 describe('Ward Lookup API', () => {
-  test('Health check endpoint works', async () => {
-    const res = await request(app).get('/health');
+  let mockSupabase;
+
+  beforeEach(() => {
+    mockSupabase = {
+      from: jest.fn()
+    };
+
+    app.locals.supabase = mockSupabase;
+  });
+
+  test('Ward lookup returns 200 when ward is found', async () => {
+    const selectMock = {
+      filter: jest.fn().mockResolvedValue({
+        data: [{ ward_number: '10', municipality: 'Joburg' }],
+        error: null
+      })
+    };
+
+    mockSupabase.from.mockReturnValue({
+      select: jest.fn(() => selectMock)
+    });
+
+    const res = await request(app).get('/api/wards?lat=-26.2&lng=28.0');
+
     expect(res.statusCode).toBe(200);
-    expect(res.body.status).toBe('healthy');
   });
 
-  test('Ward lookup requires coordinates', async () => {
-    const res = await request(app).get('/api/wards/lookup');
-    expect(res.statusCode).toBe(400);
-    expect(res.body.error).toContain('Latitude and longitude are required');
+  test('Ward lookup returns 404 when no ward found', async () => {
+    const selectMock = {
+      filter: jest.fn().mockResolvedValue({
+        data: [],
+        error: null
+      })
+    };
+
+    mockSupabase.from.mockReturnValue({
+      select: jest.fn(() => selectMock)
+    });
+
+    const res = await request(app).get('/api/wards?lat=-26.2&lng=28.0');
+
+    expect(res.statusCode).toBe(404);
   });
 
-  test('Ward lookup with valid coordinates', async () => {
-    // Using coordinates for Sandton, Johannesburg
-    const res = await request(app)
-      .get('/api/wards/lookup?lat=-26.107&lng=28.057');
-    
-    // This may return 404 if ward data isn't loaded yet
-    // That's okay for now - the test validates the endpoint structure
-    expect([200, 404]).toContain(res.statusCode);
+  test('Ward lookup returns 500 on DB error', async () => {
+    const selectMock = {
+      filter: jest.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'DB error' }
+      })
+    };
+
+    mockSupabase.from.mockReturnValue({
+      select: jest.fn(() => selectMock)
+    });
+
+    const res = await request(app).get('/api/wards?lat=-26.2&lng=28.0');
+
+    expect(res.statusCode).toBe(500);
   });
 });

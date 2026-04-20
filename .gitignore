@@ -1,4 +1,33 @@
+# Dependencies
 node_modules/
+
+# Build & coverage
 coverage/
+build/
+dist/
+
+# Environment variables
 .env
-.supabase
+.env.local
+.env.*.local
+
+# Supabase local config
+.supabase/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor files
+.vscode/
+.vs/
+src/.vs/
+
+# Misc
+*.log
+*.tmp

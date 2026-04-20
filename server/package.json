@@ -6,20 +6,24 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest --coverage",
+    "test": "jest --coverage --runInBand",
     "test:watch": "jest --watch"
   },
   "jest": {
-    "collectCoverageFrom": [
-      "routes/**/*.js",
-      "middleware/**/*.js"
-    ],
-    "coverageThreshold": {
-      "global": {
-        "lines": 50
-      }
+  "setupFiles": [
+    "<rootDir>/tests/setupEnv.js"
+  ],
+  "collectCoverageFrom": [
+    "index.js",
+    "routes/**/*.js",
+    "middleware/**/*.js"
+  ],
+  "coverageThreshold": {
+    "global": {
+      "lines": 50
     }
-  },
+  }
+},
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "cors": "^2.8.5",
@@ -29,6 +33,6 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.0.1",
-    "supertest": "^6.3.3"
+    "supertest": "^6.3.4"
   }
 }
