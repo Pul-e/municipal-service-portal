@@ -10,52 +10,81 @@ function ReportIssuePage() {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [wardInfo, setWardInfo] = useState(null);
 
   // Handle location selection from the map
-  const handleLocationSelect = (location) => {
-    setSelectedLocation(location);
-    console.log('Location selected:', location); // { lat: -26.195, lng: 28.034 }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    // Validate location was selected
-    if (!selectedLocation) {
-      setError('Please click on the map to select your location');
-      setLoading(false);
-      return;
-    }
-
-    // Get the currently logged-in user
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // Prepare location string or point for database
-    const locationText = `Lat: ${selectedLocation.lat.toFixed(6)}, Lng: ${selectedLocation.lng.toFixed(6)}`;
-    const locationPoint = `POINT(${selectedLocation.lng} ${selectedLocation.lat})`;
-
-    const { error: insertError } = await supabase
-      .from('service_requests')
-      .insert({
-        category,
-        description,
-        location: locationText,  // Human-readable location
-        location_point: locationPoint,  // PostGIS point (if column exists)
-        status: 'Acknowledged',  // Changed from 'Pending' to match brief
-        user_id: user?.id || null,
+const handleLocationSelect = async (location) => {
+  setSelectedLocation(location);
+  
+  try {
+    // Call Supabase RPC directly (no backend needed)
+    const { data, error } = await supabase
+      .rpc('get_ward_from_location', { 
+        lat: location.lat, 
+        lng: location.lng 
       });
-
-    setLoading(false);
-
-    if (insertError) {
-      setError('Failed to submit report: ' + insertError.message);
+    
+    if (data && data.length > 0) {
+      setWardInfo({
+        ward_number: data[0].ward_no,
+        municipality: data[0].municipali,
+        province: data[0].province,
+        ward_id: data[0].ward_id
+      });
     } else {
-      alert('Report submitted successfully!');
-      navigate('/my-requests');
+      setWardInfo(null);
     }
-  };
+  } catch (error) {
+    console.error('Failed to fetch ward info:', error);
+    setWardInfo(null);
+  }
+};
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError('');
+
+  if (!selectedLocation) {
+    setError('Please click on the map to select your location');
+    setLoading(false);
+    return;
+  }
+
+  // Get the current user
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+
+  if (!userId) {
+    setError('You must be signed in to submit a report');
+    setLoading(false);
+    return;
+  }
+
+  const locationText = `Lat: ${selectedLocation.lat.toFixed(6)}, Lng: ${selectedLocation.lng.toFixed(6)}`;
+  const locationPoint = `POINT(${selectedLocation.lng} ${selectedLocation.lat})`;
+
+const { error: insertError } = await supabase
+  .from('service_requests')
+  .insert({
+    category,
+    description,
+    location: locationText,
+    location_point: locationPoint,
+    status: 'Acknowledged',
+    user_id: userId,
+    ward: String(wardInfo?.ward_number || ''),  // Convert to string explicitly
+  });
+
+  setLoading(false);
+
+  if (insertError) {
+    setError('Failed to submit report: ' + insertError.message);
+  } else {
+    alert('Report submitted successfully!');
+    navigate('/my-requests');
+  }
+};
 
   return (
     <article className="page-container">
@@ -65,14 +94,12 @@ function ReportIssuePage() {
 
       <form onSubmit={handleSubmit} className="report-form" aria-label="Service issue report form">
 
-        {/* Show error if submission fails */}
         {error && (
           <div style={{ background: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem' }}>
             {error}
           </div>
         )}
 
-        {/* Category Fieldset */}
         <fieldset className="form-group">
           <legend>Issue Details</legend>
 
@@ -83,7 +110,6 @@ function ReportIssuePage() {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               required
-              aria-required="true"
             >
               <option value="">-- Select an issue type --</option>
               <option value="pothole">🕳️ Pothole</option>
@@ -104,23 +130,15 @@ function ReportIssuePage() {
               placeholder="Please describe the issue in detail..."
               rows="4"
               required
-              aria-required="true"
             />
           </div>
 
           <div className="form-field">
             <label htmlFor="photo">Upload Photo (Optional)</label>
-            <input
-              type="file"
-              id="photo"
-              accept="image/*"
-              className="file-input"
-              aria-label="Upload a photo of the issue"
-            />
+            <input type="file" id="photo" accept="image/*" className="file-input" />
           </div>
         </fieldset>
 
-        {/* Location Fieldset - NOW WITH INTERACTIVE MAP */}
         <fieldset className="form-group">
           <legend>Location</legend>
 
@@ -135,21 +153,28 @@ function ReportIssuePage() {
                 Latitude: {selectedLocation.lat.toFixed(6)}
                 <br />
                 Longitude: {selectedLocation.lng.toFixed(6)}
+                
+                {wardInfo && wardInfo.ward_number && (
+                  <>
+                    <br />
+                    <strong>🏛️ Ward (auto-detected):</strong> Ward {wardInfo.ward_number} - {wardInfo.municipality}
+                    <br />
+                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                      Data source: {wardInfo.data_source}
+                    </span>
+                  </>
+                )}
+                {!wardInfo && (
+                  <>
+                    <br />
+                    <span style={{ fontSize: '0.9em', color: '#e67e22' }}>
+                      ⚠️ No ward found for this location (outside South Africa?)
+                    </span>
+                  </>
+                )}
               </div>
             )}
           </div>
-
-          <figcaption className="location-info">
-            <div className="location-detail">
-              <strong>🏛️ Municipality:</strong> City of Johannesburg Metropolitan
-            </div>
-            <div className="location-detail">
-              <strong>📍 Ward:</strong> Automatically detected from map click
-            </div>
-            <div className="location-detail source">
-              <strong>🗺️ Data Source:</strong> Municipal Demarcation Board (MDB) 2024
-            </div>
-          </figcaption>
         </fieldset>
 
         <button 
