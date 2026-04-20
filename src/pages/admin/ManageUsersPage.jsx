@@ -80,8 +80,8 @@ function ManageUsersPage() {
 
   const filteredUsers = users.filter(user => {
     if (filter === 'all') return true;
-    if (filter === 'residents') return user.role === 'resident';
-    if (filter === 'workers') return user.role === 'worker';
+    if (filter === 'resident') return user.role === 'user';
+    if (filter === 'workers') return user.role === 'staff';
     return true;
   });
 
@@ -207,8 +207,8 @@ function ManageUsersPage() {
                             onChange={(e) => handleRoleChange(user.id, e.target.value)}
                             aria-label={`Change role for ${user.email}`}
                           >
-                            <option value="resident">🏠 Make Resident</option>
-                            <option value="worker">🔧 Make Worker</option>
+                            <option value="user">🏠 Make Resident</option>
+                            <option value="staff">🔧 Make Worker</option>
                           </select>
                         )}
                         {user.role === 'admin' && (

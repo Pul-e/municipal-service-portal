@@ -60,39 +60,39 @@ function WorkerDashboardPage() {
     };
 
     const getReporterEmail = async (requestId) => {
-    try {
-        const { data: requestData, error: requestError } = await supabase
-            .from('service_requests')
-            .select('id, user_id, category, location, address, status')
-            .eq('id', requestId)
-            .single();
+        try {
+            const { data: requestData, error: requestError } = await supabase
+                .from('service_requests')
+                .select('id, user_id, category, location, address, status')
+                .eq('id', requestId)
+                .single();
 
-        if (requestError) throw requestError;
-        if (!requestData?.user_id) return null;
+            if (requestError) throw requestError;
+            if (!requestData?.user_id) return null;
 
-        const { data: reporterProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, email, full_name')
-            .eq('id', requestData.user_id)
-            .maybeSingle();
+            const { data: reporterProfile, error: profileError } = await supabase
+                .from('profiles')
+                .select('id, email, full_name')
+                .eq('id', requestData.user_id)
+                .maybeSingle();
 
-        if (profileError) throw profileError;
+            if (profileError) throw profileError;
 
-        if (!reporterProfile?.email) {
-            console.warn('No matching profile/email for reporter:', requestData.user_id);
+            if (!reporterProfile?.email) {
+                console.warn('No matching profile/email for reporter:', requestData.user_id);
+                return null;
+            }
+
+            return {
+                email: reporterProfile.email,
+                full_name: reporterProfile.full_name || 'Resident',
+                request: requestData
+            };
+        } catch (err) {
+            console.error('getReporterEmail error:', err);
             return null;
         }
-
-        return {
-            email: reporterProfile.email,
-            full_name: reporterProfile.full_name || 'Resident',
-            request: requestData
-        };
-    } catch (err) {
-        console.error('getReporterEmail error:', err);
-        return null;
-    }
-};
+    };
 
     const sendStatusEmail = async (requestId, newStatus) => {
         try {
@@ -112,69 +112,60 @@ function WorkerDashboardPage() {
                 status: newStatus
             };
 
-            const { data, error } = await supabase.functions.invoke('send-status-email', {
-                body: payload
-            });
-
-            if (error) {
-                console.error('Email function error:', error);
-                return;
-            }
-
-            console.log('Status email sent:', data);
+            console.log('Email integration not implemented yet. Payload prepared:', payload);
         } catch (err) {
             console.error('sendStatusEmail error:', err);
         }
     };
 
     const handleStatusUpdate = async (requestId, newStatus) => {
-    try {
-        setError(null);
+        try {
+            setError(null);
 
-        const now = new Date().toISOString();
+            const now = new Date().toISOString();
 
-        const updatePayload = {
-            status: newStatus,
-            updated_at: now
-        };
+            const updatePayload = {
+                status: newStatus,
+                updated_at: now
+            };
 
-        if (newStatus === 'Resolved') {
-            updatePayload.resolved_at = now;
-            updatePayload.assigned = false;
+            if (newStatus === 'Resolved') {
+                updatePayload.resolved_at = now;
+                updatePayload.assigned = false;
+            }
+
+            if (newStatus === 'Acknowledged' || newStatus === 'In Progress') {
+                updatePayload.assigned = true;
+            }
+
+            const { data, error } = await supabase
+                .from('service_requests')
+                .update(updatePayload)
+                .eq('id', requestId)
+                .select('id, status, assigned, updated_at, resolved_at');
+
+            console.log('STATUS UPDATE RESULT:', data, error);
+
+            if (error) throw error;
+            if (!data || data.length === 0) {
+                throw new Error('No rows returned from update.');
+            }
+
+            const updatedRow = data[0];
+            console.log('UPDATED STATUS VALUE:', updatedRow.status);
+
+            setRequests(prev =>
+                prev.map(req =>
+                    req.id === requestId ? { ...req, ...updatedRow } : req
+                )
+            );
+
+            await sendStatusEmail(requestId, newStatus);
+        } catch (err) {
+            console.error('handleStatusUpdate error:', err);
+            setError(`Failed to update request status: ${err.message}`);
         }
-
-        if (newStatus === 'Acknowledged' || newStatus === 'In Progress') {
-            updatePayload.assigned = true;
-        }
-
-        const { data, error } = await supabase
-            .from('service_requests')
-            .update(updatePayload)
-            .eq('id', requestId)
-            .select('id, status, assigned, updated_at, resolved_at');
-
-        console.log('STATUS UPDATE RESULT:', data, error);
-
-        if (error) throw error;
-        if (!data || data.length === 0) {
-            throw new Error('No rows returned from update.');
-        }
-
-        const updatedRow = data[0];
-        console.log('UPDATED STATUS VALUE:', updatedRow.status);
-
-        setRequests(prev =>
-            prev.map(req =>
-                req.id === requestId ? { ...req, ...updatedRow } : req
-            )
-        );
-
-        await sendStatusEmail(requestId, newStatus);
-    } catch (err) {
-        console.error('handleStatusUpdate error:', err);
-        setError(`Failed to update request status: ${err.message}`);
-    }
-};
+    };
 
     if (loading) {
         return (
@@ -202,7 +193,7 @@ function WorkerDashboardPage() {
                 <h1>Municipal Worker Dashboard</h1>
                 <div className="worker-info">
                     <p><strong>{profile?.full_name || user?.email || 'Worker'}</strong></p>
-                    <p>{profile?.role || 'Municipal Worker'}</p>
+                    <p>{profile?.zone ? `Zone ${profile.zone}` : ''} • {profile?.role || 'Municipal Worker'}</p>
                 </div>
             </header>
 
