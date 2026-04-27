@@ -15,10 +15,14 @@ function InteractiveMap({ onLocationSelect, markers = [] }) {
   const [position, setPosition] = useState(null);
 
   function MapClickHandler() {
-    useMapEvents({
+    const map = useMapEvents({
       click(e) {
+        // Set marker position
         setPosition(e.latlng);
         onLocationSelect({ lat: e.latlng.lat, lng: e.latlng.lng });
+        
+        // Zoom in to clicked location (zoom level 15 for street-level detail)
+        map.flyTo(e.latlng, 12, { duration: 0.5 });
       },
     });
     return null;
@@ -26,8 +30,8 @@ function InteractiveMap({ onLocationSelect, markers = [] }) {
 
   return (
     <MapContainer
-      center={[-26.195, 28.034]}
-      zoom={12}
+      center={[-29.0, 24.0]}
+      zoom={5}
       style={{ height: '400px', width: '100%' }}
     >
       <TileLayer

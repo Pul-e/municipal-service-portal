@@ -179,7 +179,7 @@ function PublicDashboardPage() {
       {/* Interactive Map Section - REPLACED MapPlaceholder */}
       <section className="map-section-large" aria-label="Ward boundary map">
         <h2>Service Delivery Map</h2>
-        <p className="map-context">City of Johannesburg • Ward 58</p>
+        <p className="map-context">Explore service requests across South Africa</p>
         <figure className="large-map-container">
           <InteractiveMap onLocationSelect={() => {}} markers={reportMarkers} />
           <figcaption className="map-data-source">
