@@ -24,6 +24,7 @@ function PublicDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [reportMarkers, setReportMarkers] = useState([]);
+  const [avgResponseTime, setAvgResponseTime] = useState(null);
 
   useEffect(() => {
     async function fetchRequests() {
@@ -40,9 +41,55 @@ function PublicDashboardPage() {
       }
       setLoading(false);
     }
+    // Calculate average response time from created_at to resolved_at
+    // Calculate average response time in days/hours/minutes
+  const fetchAvgResponseTime = async () => {
+    const { data, error } = await supabase
+      .from('service_requests')
+      .select('created_at, resolved_at')
+      .eq('status', 'Resolved')
+      .not('resolved_at', 'is', null);
+
+    if (error) {
+      console.error('Error fetching response times:', error);
+      return;
+    }
+
+    if (data.length === 0) {
+      setAvgResponseTime(null);
+      return;
+    }
+
+    let totalMinutes = 0;
+    data.forEach(req => {
+      const created = new Date(req.created_at);
+      const resolved = new Date(req.resolved_at);
+      const diffMinutes = (resolved - created) / (1000 * 60);
+      totalMinutes += diffMinutes;
+    });
+
+    const avgMinutes = totalMinutes / data.length;
+    
+    // Convert to days, hours, minutes
+    const days = Math.floor(avgMinutes / (60 * 24));
+    const hours = Math.floor((avgMinutes % (60 * 24)) / 60);
+    const minutes = Math.floor(avgMinutes % 60);
+    
+    let displayValue = '';
+    if (days > 0) displayValue += `${days}d `;
+    if (hours > 0 || days > 0) displayValue += `${hours}h `;
+    displayValue += `${minutes}min`;
+    
+    setAvgResponseTime(displayValue.trim());
+  };
 
     fetchRequests();
+    fetchAvgResponseTime();
+
+    
   }, []);
+
+
 
     // Fetch all reports with coordinates to show as coloured markers on the map
   useEffect(() => {
@@ -124,7 +171,7 @@ function PublicDashboardPage() {
           <span className="stat-label">Resolved This Month</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">3.2d</span>
+          <span className="stat-value">{avgResponseTime || '—'}</span>
           <span className="stat-label">Avg Response</span>
         </div>
       </section>
