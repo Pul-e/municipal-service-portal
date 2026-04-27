@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import InteractiveMap from '../components/InteractiveMap';
@@ -11,6 +11,57 @@ function ReportIssuePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [wardInfo, setWardInfo] = useState(null);
+  const [reportMarkers, setReportMarkers] = useState([]);
+
+  // Fetch existing reports to show as coloured markers on the map
+  useEffect(() => {
+    const fetchExistingReports = async () => {
+      const { data, error } = await supabase
+        .from('service_requests')
+        .select('id, status, location_point')
+        .not('location_point', 'is', null);
+
+      if (error) {
+        console.error('Error fetching reports for map:', error);
+        return;
+      }
+
+      const markers = data
+        .map(req => {
+          let lng, lat;
+          // If location_point is a string like "POINT(lng lat)"
+          if (typeof req.location_point === 'string') {
+            const match = req.location_point.match(/POINT\(([-\d.]+) ([-+\d.]+)\)/);
+            if (match) {
+              lng = parseFloat(match[1]);
+              lat = parseFloat(match[2]);
+            }
+          }
+          // If location_point is a GeoJSON object (from Supabase)
+          else if (req.location_point && typeof req.location_point === 'object') {
+            if (req.location_point.coordinates && req.location_point.coordinates.length === 2) {
+              lng = req.location_point.coordinates[0];
+              lat = req.location_point.coordinates[1];
+            }
+          }
+          
+          if (lng !== undefined && lat !== undefined) {
+            return {
+              id: req.id,
+              lng: lng,
+              lat: lat,
+              status: req.status
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      setReportMarkers(markers);
+    };
+
+    fetchExistingReports();
+  }, []);
 
   // Handle location selection from the map
 const handleLocationSelect = async (location) => {
@@ -71,7 +122,7 @@ const { error: insertError } = await supabase
     description,
     location: locationText,
     location_point: locationPoint,
-    status: 'Acknowledged',
+    status: 'Pending',
     user_id: userId,
     ward: String(wardInfo?.ward_number || ''),  // Convert to string explicitly
   });
@@ -144,7 +195,7 @@ const { error: insertError } = await supabase
 
           <div className="form-field">
             <label>Click on the map to select your location *</label>
-            <InteractiveMap onLocationSelect={handleLocationSelect} />
+            <InteractiveMap onLocationSelect={handleLocationSelect} markers={reportMarkers} />
             
             {selectedLocation && (
               <div className="location-info" style={{ marginTop: '10px', padding: '8px', background: '#e8f5e9', borderRadius: '4px' }}>

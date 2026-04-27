@@ -23,6 +23,7 @@ function PublicDashboardPage() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [reportMarkers, setReportMarkers] = useState([]);
 
   useEffect(() => {
     async function fetchRequests() {
@@ -41,6 +42,57 @@ function PublicDashboardPage() {
     }
 
     fetchRequests();
+  }, []);
+
+    // Fetch all reports with coordinates to show as coloured markers on the map
+  useEffect(() => {
+    const fetchReportMarkers = async () => {
+      const { data, error } = await supabase
+        .from('service_requests')
+        .select('id, status, location_point')
+        .not('location_point', 'is', null);
+
+      if (error) {
+        console.error('Error fetching report markers:', error);
+        return;
+      }
+
+      const markers = data
+        .map(req => {
+          let lat = null, lng = null;
+          
+          // Case 1: location_point is a string in WKT format "POINT(lng lat)"
+          if (typeof req.location_point === 'string') {
+            const match = req.location_point.match(/POINT\(([-\d.]+) ([-+\d.]+)\)/);
+            if (match) {
+              lng = parseFloat(match[1]);
+              lat = parseFloat(match[2]);
+            }
+          } 
+          // Case 2: location_point is a GeoJSON object
+          else if (req.location_point && typeof req.location_point === 'object') {
+            if (req.location_point.type === 'Point' && req.location_point.coordinates) {
+              lng = req.location_point.coordinates[0];
+              lat = req.location_point.coordinates[1];
+            }
+          }
+          
+          if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+            return {
+              id: req.id,
+              lat,
+              lng,
+              status: req.status
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      setReportMarkers(markers);
+    };
+
+    fetchReportMarkers();
   }, []);
 
   // For now, use hardcoded stats until you have the actual data
@@ -82,7 +134,7 @@ function PublicDashboardPage() {
         <h2>Service Delivery Map</h2>
         <p className="map-context">City of Johannesburg • Ward 58</p>
         <figure className="large-map-container">
-          <InteractiveMap onLocationSelect={handleLocationSelect} />
+          <InteractiveMap onLocationSelect={() => {}} markers={reportMarkers} />
           <figcaption className="map-data-source">
             <strong>Data Source:</strong> South African Municipal Demarcation Board (MDB) 2024
             <br />
