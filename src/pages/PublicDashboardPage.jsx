@@ -29,7 +29,7 @@ function PublicDashboardPage() {
     async function fetchRequests() {
       const { data, error } = await supabase
         .from('service_requests')
-        .select('id, category, location, status, created_at')
+        .select('id, category, location, status, created_at, municipality, ward')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -57,7 +57,7 @@ function PublicDashboardPage() {
         return;
       }
 
-      const markers = data
+            const markers = data
         .map(req => {
           let lat = null, lng = null;
           
@@ -164,7 +164,7 @@ function PublicDashboardPage() {
                   {CATEGORY_ICONS[req.category] || '📋'}
                 </span>
                 <span className="activity-detail">
-                  {req.category} reported — {req.location || 'Location not specified'}
+                  {req.category} reported — {req.municipality || 'Unknown Municipality'}, {req.ward ? `Ward ${req.ward}` : 'Ward not specified'}
                 </span>
                 <span className="activity-time">{timeAgo(req.created_at)}</span>
               </li>

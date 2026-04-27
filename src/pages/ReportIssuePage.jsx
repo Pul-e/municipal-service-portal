@@ -124,7 +124,8 @@ const { error: insertError } = await supabase
     location_point: locationPoint,
     status: 'Pending',
     user_id: userId,
-    ward: String(wardInfo?.ward_number || ''),  // Convert to string explicitly
+    ward: String(wardInfo?.ward_number || ''),
+    municipality: wardInfo?.municipality || '',
   });
 
   setLoading(false);
