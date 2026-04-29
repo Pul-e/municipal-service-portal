@@ -68,6 +68,9 @@ function WorkerDashboardPage() {
                 .single();
 
             if (requestError) throw requestError;
+
+            console.log('REQUEST DATA:', requestData);
+
             if (!requestData?.user_id) return null;
 
             const { data: reporterProfile, error: profileError } = await supabase
@@ -77,6 +80,7 @@ function WorkerDashboardPage() {
                 .maybeSingle();
 
             if (profileError) throw profileError;
+            console.log('REPORTER PROFILE:', reporterProfile);
 
             if (!reporterProfile?.email) {
                 console.warn('No matching profile/email for reporter:', requestData.user_id);
@@ -95,28 +99,35 @@ function WorkerDashboardPage() {
     };
 
     const sendStatusEmail = async (requestId, newStatus) => {
-        try {
-            const reporterInfo = await getReporterEmail(requestId);
+    try {
+        const reporterInfo = await getReporterEmail(requestId);
 
-            if (!reporterInfo?.email) {
-                console.warn('No reporter email found for request:', requestId);
-                return;
-            }
-
-            const payload = {
-                to: reporterInfo.email,
-                full_name: reporterInfo.full_name,
-                request_id: reporterInfo.request.id,
-                category: reporterInfo.request.category,
-                location: reporterInfo.request.address || reporterInfo.request.location,
-                status: newStatus
-            };
-
-            console.log('Email integration not implemented yet. Payload prepared:', payload);
-        } catch (err) {
-            console.error('sendStatusEmail error:', err);
+        if (!reporterInfo?.email) {
+            console.warn('No reporter email found for request:', requestId);
+            return;
         }
-    };
+
+        const payload = {
+            to: reporterInfo.email,
+            full_name: reporterInfo.full_name,
+            request_id: reporterInfo.request.id,
+            category: reporterInfo.request.category,
+            location: reporterInfo.request.address || reporterInfo.request.location,
+            status: newStatus
+        };
+
+        const { data, error } = await supabase.functions.invoke('send-status-email', {
+            body: payload
+        });
+
+        console.log('EMAIL FUNCTION RESULT:', data, error);
+
+        if (error) throw error;
+
+    } catch (err) {
+        console.error('sendStatusEmail error:', err);
+    }
+};
 
     const handleStatusUpdate = async (requestId, newStatus) => {
         try {
