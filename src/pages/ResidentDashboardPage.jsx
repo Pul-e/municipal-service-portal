@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 function ResidentDashboardPage() {
+  const navigate = useNavigate();
   const [userName, setUserName] = useState('Resident');
   const [userWard, setUserWard] = useState('Unknown');
   const [stats, setStats] = useState({ open: 0, resolved: 0 });
@@ -17,7 +18,6 @@ function ResidentDashboardPage() {
         return;
       }
 
-      // Get profile name
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name')
@@ -30,7 +30,6 @@ function ResidentDashboardPage() {
         setUserName(user.email.split('@')[0]);
       }
 
-      // Get user's requests
       const { data: requests } = await supabase
         .from('service_requests')
         .select('*')
@@ -41,7 +40,7 @@ function ResidentDashboardPage() {
         const open = requests.filter(r => r.status !== 'Resolved').length;
         const resolved = requests.filter(r => r.status === 'Resolved').length;
         setStats({ open, resolved });
-        setRecentRequests(requests.slice(0, 2));
+        setRecentRequests(requests.slice(0, 3));
         
         const lastWithWard = requests.find(r => r.ward);
         if (lastWithWard?.ward) {
@@ -75,9 +74,14 @@ function ResidentDashboardPage() {
 
   return (
     <article className="page-container">
+      {/* Back Button */}
+      <button className="back-btn" onClick={() => navigate('/')}>
+        ← Back to Home
+      </button>
+
       <header>
         <h1>Resident Dashboard</h1>
-        <p>Welcome back, {userName} • Ward {userWard}</p>
+        <p className="page-subtitle">Welcome back, {userName} • Ward {userWard}</p>
       </header>
 
       <div className="dashboard-actions">
@@ -92,22 +96,43 @@ function ResidentDashboardPage() {
       <section className="quick-stats">
         <h2>Your Activity</h2>
         <div className="stats-row">
-          <div className="stat-card">{stats.open} Open Requests</div>
-          <div className="stat-card">{stats.resolved} Resolved</div>
-          <div className="stat-card">Ward {userWard}</div>
+          <div className="stat-card">
+            <span className="stat-value">{stats.open}</span>
+            <span className="stat-label">Open</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-value">{stats.resolved}</span>
+            <span className="stat-label">Resolved</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-value">{userWard}</span>
+            <span className="stat-label">Ward</span>
+          </div>
         </div>
       </section>
 
-      <section className="recent-requests">
+      <section className="dashboard-section">
         <h2>Your Recent Requests</h2>
         {recentRequests.length > 0 ? (
-          recentRequests.map(req => (
-            <p key={req.id}>
-              {getCategoryIcon(req.category)} {req.description?.slice(0, 30) || req.category} - {req.status}
-            </p>
-          ))
+          <ul className="requests-list">
+            {recentRequests.map(req => (
+              <li key={req.id}>
+                <article className="request-card">
+                  <header className="request-header">
+                    <span className="request-category">
+                      {getCategoryIcon(req.category)} {req.category}
+                    </span>
+                    <span className={`status-badge status-${(req.status || '').toLowerCase().replace(/\s+/g, '-')}`}>
+                      {req.status}
+                    </span>
+                  </header>
+                  <p className="request-location">{req.location || 'No location'}</p>
+                </article>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <p>No requests yet. Report an issue to get started!</p>
+          <p className="empty-state">No requests yet. Report an issue to get started!</p>
         )}
       </section>
     </article>

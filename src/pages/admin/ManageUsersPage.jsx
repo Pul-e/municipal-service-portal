@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 
 function ManageUsersPage() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -105,6 +107,11 @@ function ManageUsersPage() {
 
   return (
     <article className="page-container">
+      {/* Back Button */}
+      <button className="back-btn" onClick={() => navigate('/admin/dashboard')}>
+        ← Back to Admin Dashboard
+      </button>
+
       <header className="page-header">
         <h1>Manage Users</h1>
         <p className="page-subtitle">View and manage all registered users</p>

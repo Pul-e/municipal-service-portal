@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 function AnalyticsDashboardPage() {
+  const navigate = useNavigate();
   const [volumeData, setVolumeData] = useState(null);
   const [resolutionData, setResolutionData] = useState(null);
   const [workerData, setWorkerData] = useState(null);
@@ -62,6 +64,11 @@ function AnalyticsDashboardPage() {
 
   return (
     <article className="page-container">
+      {/* Back Button */}
+      <button className="back-btn" onClick={() => navigate('/admin/dashboard')}>
+        ← Back to Admin Dashboard
+      </button>
+
       <header className="page-header">
         <h1>📊 Analytics Dashboard</h1>
         <p className="page-subtitle">Service delivery insights and performance metrics</p>
@@ -124,7 +131,6 @@ function AnalyticsDashboardPage() {
             </div>
           </div>
 
-          {/* By Category Chart (Simple Bar) */}
           <div className="chart-section">
             <h3>By Category</h3>
             <div className="bar-chart">
@@ -148,7 +154,6 @@ function AnalyticsDashboardPage() {
             </div>
           </div>
 
-          {/* By Status */}
           <div className="chart-section">
             <h3>By Status</h3>
             <div className="status-grid">
@@ -185,7 +190,6 @@ function AnalyticsDashboardPage() {
             </div>
           </div>
 
-          {/* By Category */}
           <div className="chart-section">
             <h3>Average Resolution Time by Category</h3>
             <div className="bar-chart">
@@ -236,7 +240,6 @@ function AnalyticsDashboardPage() {
             </div>
           </div>
 
-          {/* Workers Table */}
           <div className="table-responsive">
             <table className="users-table">
               <thead>
@@ -275,7 +278,6 @@ function AnalyticsDashboardPage() {
         </section>
       )}
 
-      {/* Refresh Button */}
       <div className="refresh-section">
         <button className="secondary-btn" onClick={fetchAllReports}>
           🔄 Refresh Reports

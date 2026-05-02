@@ -6,30 +6,47 @@ function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
+  const pathSeg = location.pathname.split('/')[1];
   const isPublic = location.pathname === '/' || location.pathname === '/signin';
-  const userRole = location.pathname.split('/')[1]; // resident, worker, or admin
 
   useEffect(() => {
-    // Check if a user is already logged in on mount
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
+      if (user) fetchProfile(user.id);
     });
 
-    // Listen for login/logout events and update state automatically
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setUserProfile(null);
+      }
     });
 
-    // Cleanup the listener when the component unmounts
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchProfile = async (userId) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, full_name')
+      .eq('id', userId)
+      .single();
+    setUserProfile(data);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setUserProfile(null);
     navigate('/');
   };
+
+  const role = userProfile?.role || pathSeg;
+  const isActive = (path) => location.pathname.startsWith(path);
 
   return (
     <header className="navbar">
@@ -41,20 +58,72 @@ function Navbar() {
 
       <nav className="nav-links">
         {user ? (
-          // Logged-in state
           <>
+            {/* Resident Links */}
+            {role === 'resident' && (
+              <ul>
+                <li>
+                  <Link to="/resident/dashboard" className={isActive('/resident/dashboard') ? 'active' : ''}>
+                    🏠 Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/resident/report" className={isActive('/resident/report') ? 'active' : ''}>
+                    📝 Report Issue
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/resident/my-requests" className={isActive('/resident/my-requests') ? 'active' : ''}>
+                    📋 My Requests
+                  </Link>
+                </li>
+              </ul>
+            )}
+
+            {/* Worker Links */}
+            {role === 'worker' && (
+              <ul>
+                <li>
+                  <Link to="/worker/dashboard" className={isActive('/worker/dashboard') ? 'active' : ''}>
+                    🔧 Dashboard
+                  </Link>
+                </li>
+              </ul>
+            )}
+
+            {/* Admin Links */}
+            {role === 'admin' && (
+              <ul>
+                <li>
+                  <Link to="/admin/dashboard" className={isActive('/admin/dashboard') ? 'active' : ''}>
+                    📊 Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/users" className={isActive('/admin/users') ? 'active' : ''}>
+                    👥 Users
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/analytics" className={isActive('/admin/analytics') ? 'active' : ''}>
+                    📈 Analytics
+                  </Link>
+                </li>
+              </ul>
+            )}
+
+            {/* User Info + Sign Out */}
             <span className="user-role-badge">
-              {userRole === 'resident' && '🏠 Resident'}
-              {userRole === 'worker' && '🔧 Worker'}
-              {userRole === 'admin' && '📊 Admin'}
-              {!['resident', 'worker', 'admin'].includes(userRole) && user.email}
+              {role === 'resident' && '🏠 Resident'}
+              {role === 'worker' && '🔧 Worker'}
+              {role === 'admin' && '📊 Admin'}
+              {!['resident', 'worker', 'admin'].includes(role) && user?.email}
             </span>
             <button className="auth-btn" onClick={handleSignOut}>
               Sign Out
             </button>
           </>
         ) : (
-          // Logged-out state
           <Link to="/signin" className="signin-link">
             Sign In
           </Link>

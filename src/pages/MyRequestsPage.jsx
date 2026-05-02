@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import StatusBadge from '../components/StatusBadge';
 
@@ -11,16 +12,16 @@ function timeAgo(dateStr) {
 }
 
 function MyRequestsPage() {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
 
-  // Feedback state
-  const [feedbackOpen, setFeedbackOpen] = useState(null); // request id
+  const [feedbackOpen, setFeedbackOpen] = useState(null);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [feedbackSuccess, setFeedbackSuccess] = useState(null); // request id
+  const [feedbackSuccess, setFeedbackSuccess] = useState(null);
   const [feedbackError, setFeedbackError] = useState('');
 
   useEffect(() => {
@@ -69,7 +70,6 @@ function MyRequestsPage() {
       setRating(0);
       setComment('');
 
-      // Update local state to show feedback submitted
       setRequests(requests.map(req =>
         req.id === requestId ? { ...req, feedback_submitted: true } : req
       ));
@@ -102,6 +102,11 @@ function MyRequestsPage() {
 
   return (
     <article className="page-container">
+      {/* Back Button */}
+      <button className="back-btn" onClick={() => navigate('/resident/dashboard')}>
+        ← Back to Dashboard
+      </button>
+
       <header>
         <h1>My Service Requests</h1>
         <p className="page-subtitle" role="doc-subtitle">
@@ -182,7 +187,6 @@ function MyRequestsPage() {
                         View Details →
                       </button>
 
-                      {/* Feedback Button - Only for resolved requests */}
                       {request.status === 'Resolved' && !request.feedback_submitted && (
                         <button
                           className="feedback-btn"
@@ -193,14 +197,12 @@ function MyRequestsPage() {
                         </button>
                       )}
 
-                      {/* Feedback Submitted Badge */}
                       {request.feedback_submitted && (
                         <span className="feedback-submitted-badge">✅ Feedback Submitted</span>
                       )}
                     </div>
                   </footer>
 
-                  {/* Feedback Form (Expandable) */}
                   {feedbackOpen === request.id && (
                     <div className="feedback-form-container">
                       <h4>Rate Your Experience</h4>
@@ -208,7 +210,6 @@ function MyRequestsPage() {
                         {request.category} at {request.location}
                       </p>
 
-                      {/* Star Rating */}
                       <div className="star-rating" role="radiogroup" aria-label="Rate your experience">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
@@ -223,7 +224,6 @@ function MyRequestsPage() {
                         ))}
                       </div>
 
-                      {/* Comment */}
                       <div className="form-group">
                         <label htmlFor={`comment-${request.id}`}>Additional Comments (Optional)</label>
                         <textarea
@@ -268,14 +268,12 @@ function MyRequestsPage() {
         )}
       </section>
 
-      {/* Feedback Success Toast */}
       {feedbackSuccess && (
         <div className="feedback-toast" role="status" aria-live="polite">
           ✅ Thank you for your feedback!
         </div>
       )}
 
-      {/* Help Section */}
       <aside className="help-section" aria-label="Help and information">
         <h3>Need Help?</h3>
         <p>If your issue hasn't been addressed, you can:</p>

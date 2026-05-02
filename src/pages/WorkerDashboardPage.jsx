@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import StatusBadge from '../components/StatusBadge';
 
 function WorkerDashboardPage() {
+    const navigate = useNavigate();
     const [requests, setRequests] = useState([]);
     const [user, setUser] = useState(null);
     const [profile, setProfile] = useState(null);
@@ -69,8 +71,6 @@ function WorkerDashboardPage() {
 
             if (requestError) throw requestError;
 
-            console.log('REQUEST DATA:', requestData);
-
             if (!requestData?.user_id) return null;
 
             const { data: reporterProfile, error: profileError } = await supabase
@@ -80,12 +80,8 @@ function WorkerDashboardPage() {
                 .maybeSingle();
 
             if (profileError) throw profileError;
-            console.log('REPORTER PROFILE:', reporterProfile);
 
-            if (!reporterProfile?.email) {
-                console.warn('No matching profile/email for reporter:', requestData.user_id);
-                return null;
-            }
+            if (!reporterProfile?.email) return null;
 
             return {
                 email: reporterProfile.email,
@@ -99,35 +95,30 @@ function WorkerDashboardPage() {
     };
 
     const sendStatusEmail = async (requestId, newStatus) => {
-    try {
-        const reporterInfo = await getReporterEmail(requestId);
+        try {
+            const reporterInfo = await getReporterEmail(requestId);
 
-        if (!reporterInfo?.email) {
-            console.warn('No reporter email found for request:', requestId);
-            return;
+            if (!reporterInfo?.email) return;
+
+            const payload = {
+                to: reporterInfo.email,
+                full_name: reporterInfo.full_name,
+                request_id: reporterInfo.request.id,
+                category: reporterInfo.request.category,
+                location: reporterInfo.request.address || reporterInfo.request.location,
+                status: newStatus
+            };
+
+            const { data, error } = await supabase.functions.invoke('send-status-email', {
+                body: payload
+            });
+
+            if (error) throw error;
+
+        } catch (err) {
+            console.error('sendStatusEmail error:', err);
         }
-
-        const payload = {
-            to: reporterInfo.email,
-            full_name: reporterInfo.full_name,
-            request_id: reporterInfo.request.id,
-            category: reporterInfo.request.category,
-            location: reporterInfo.request.address || reporterInfo.request.location,
-            status: newStatus
-        };
-
-        const { data, error } = await supabase.functions.invoke('send-status-email', {
-            body: payload
-        });
-
-        console.log('EMAIL FUNCTION RESULT:', data, error);
-
-        if (error) throw error;
-
-    } catch (err) {
-        console.error('sendStatusEmail error:', err);
-    }
-};
+    };
 
     const handleStatusUpdate = async (requestId, newStatus) => {
         try {
@@ -155,15 +146,12 @@ function WorkerDashboardPage() {
                 .eq('id', requestId)
                 .select('id, status, assigned, updated_at, resolved_at');
 
-            console.log('STATUS UPDATE RESULT:', data, error);
-
             if (error) throw error;
             if (!data || data.length === 0) {
                 throw new Error('No rows returned from update.');
             }
 
             const updatedRow = data[0];
-            console.log('UPDATED STATUS VALUE:', updatedRow.status);
 
             setRequests(prev =>
                 prev.map(req =>
@@ -200,6 +188,11 @@ function WorkerDashboardPage() {
 
     return (
         <article className="page-container">
+            {/* Back Button */}
+            <button className="back-btn" onClick={() => navigate('/')}>
+                ← Back to Home
+            </button>
+
             <header>
                 <h1>Municipal Worker Dashboard</h1>
                 <div className="worker-info">
@@ -208,7 +201,7 @@ function WorkerDashboardPage() {
                 </div>
             </header>
 
-            {error && <p className="error">{error}</p>}
+            {error && <p className="error-message">{error}</p>}
 
             <section className="worker-stats">
                 <dl className="stats-inline">
@@ -238,7 +231,7 @@ function WorkerDashboardPage() {
                             <li key={req.id}>
                                 <article className="worker-request-card">
                                     <header className="worker-request-header">
-                                        <h3>{req.category}</h3>
+                                        <h3 className="request-category">{req.category}</h3>
                                         <span className={`priority-badge priority-${req.priority?.toLowerCase() || 'low'}`}>
                                             {req.priority || 'Medium'}
                                         </span>
@@ -274,7 +267,7 @@ function WorkerDashboardPage() {
                             <li key={req.id}>
                                 <article className="worker-request-card">
                                     <header className="worker-request-header">
-                                        <h3>{req.category}</h3>
+                                        <h3 className="request-category">{req.category}</h3>
                                         <span className={`priority-badge priority-${req.priority?.toLowerCase() || 'low'}`}>
                                             {req.priority || 'Medium'}
                                         </span>
@@ -310,7 +303,7 @@ function WorkerDashboardPage() {
                             <li key={req.id}>
                                 <article className="worker-request-card">
                                     <header className="worker-request-header">
-                                        <h3>{req.category}</h3>
+                                        <h3 className="request-category">{req.category}</h3>
                                         <span className={`priority-badge priority-${req.priority?.toLowerCase() || 'low'}`}>
                                             {req.priority || 'Medium'}
                                         </span>

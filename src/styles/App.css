@@ -1688,3 +1688,9 @@ textarea:focus-visible {
   padding: 1rem 0;
   text-align: center;
 }
+
+/* Active Nav Link */
+.nav-links a.active {
+  border-bottom: 2px solid #ffd700;
+  padding-bottom: 2px;
+}
