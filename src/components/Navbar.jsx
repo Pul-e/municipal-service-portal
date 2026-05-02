@@ -9,7 +9,6 @@ function Navbar() {
   const [userProfile, setUserProfile] = useState(null);
 
   const pathSeg = location.pathname.split('/')[1];
-  const isPublic = location.pathname === '/' || location.pathname === '/signin';
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -48,11 +47,25 @@ function Navbar() {
   const role = userProfile?.role || pathSeg;
   const isActive = (path) => location.pathname.startsWith(path);
 
+  const roleLabelMap = {
+    resident: 'Resident',
+    worker: 'Worker',
+    admin: 'Admin',
+  };
+
   return (
     <header className="navbar">
       <div className="nav-brand">
         <Link to="/">
-          <h1>🏛️ Municipal Connect</h1>
+          {/* Civic building icon */}
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+            <rect x="1" y="13" width="20" height="8" rx="1.5" fill="#52b788"/>
+            <rect x="4" y="8" width="14" height="5" fill="#52b788" opacity="0.75"/>
+            <rect x="9" y="2" width="4" height="6" fill="#52b788" opacity="0.55"/>
+            <rect x="5" y="15" width="3" height="6" fill="#0d2818" opacity="0.3"/>
+            <rect x="14" y="15" width="3" height="6" fill="#0d2818" opacity="0.3"/>
+          </svg>
+          <h1>Municipal Connect</h1>
         </Link>
       </div>
 
@@ -64,17 +77,17 @@ function Navbar() {
               <ul>
                 <li>
                   <Link to="/resident/dashboard" className={isActive('/resident/dashboard') ? 'active' : ''}>
-                    🏠 Dashboard
+                    Dashboard
                   </Link>
                 </li>
                 <li>
                   <Link to="/resident/report" className={isActive('/resident/report') ? 'active' : ''}>
-                    📝 Report Issue
+                    Report Issue
                   </Link>
                 </li>
                 <li>
                   <Link to="/resident/my-requests" className={isActive('/resident/my-requests') ? 'active' : ''}>
-                    📋 My Requests
+                    My Requests
                   </Link>
                 </li>
               </ul>
@@ -85,7 +98,7 @@ function Navbar() {
               <ul>
                 <li>
                   <Link to="/worker/dashboard" className={isActive('/worker/dashboard') ? 'active' : ''}>
-                    🔧 Dashboard
+                    Dashboard
                   </Link>
                 </li>
               </ul>
@@ -96,29 +109,27 @@ function Navbar() {
               <ul>
                 <li>
                   <Link to="/admin/dashboard" className={isActive('/admin/dashboard') ? 'active' : ''}>
-                    📊 Dashboard
+                    Dashboard
                   </Link>
                 </li>
                 <li>
                   <Link to="/admin/users" className={isActive('/admin/users') ? 'active' : ''}>
-                    👥 Users
+                    Users
                   </Link>
                 </li>
                 <li>
                   <Link to="/admin/analytics" className={isActive('/admin/analytics') ? 'active' : ''}>
-                    📈 Analytics
+                    Analytics
                   </Link>
                 </li>
               </ul>
             )}
 
-            {/* User Info + Sign Out */}
+            {/* Role badge */}
             <span className="user-role-badge">
-              {role === 'resident' && '🏠 Resident'}
-              {role === 'worker' && '🔧 Worker'}
-              {role === 'admin' && '📊 Admin'}
-              {!['resident', 'worker', 'admin'].includes(role) && user?.email}
+              {roleLabelMap[role] || user?.email?.split('@')[0] || 'User'}
             </span>
+
             <button className="auth-btn" onClick={handleSignOut}>
               Sign Out
             </button>

@@ -5,10 +5,10 @@ import InteractiveMap from '../components/InteractiveMap';
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 const CATEGORY_ICONS = {
-  pothole: '🕳️',
+  pothole: '⬛',
   'burst-pipe': '💧',
   'power-outage': '⚡',
-  'illegal-dumping': '🗑️',
+  'illegal-dumping': '🗑',
   'street-light': '💡',
   other: '📋',
 };
@@ -16,8 +16,8 @@ const CATEGORY_ICONS = {
 function timeAgo(dateStr) {
   const seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);
   if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
@@ -31,7 +31,6 @@ function PublicDashboardPage() {
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        // Fetch recent requests from Supabase
         const { data, error } = await supabase
           .from('service_requests')
           .select('id, category, location, location_point, status, created_at')
@@ -41,12 +40,10 @@ function PublicDashboardPage() {
         if (error) throw error;
         setRequests(data || []);
 
-        // Calculate stats locally
         const open = (data || []).filter(r => r.status !== 'Resolved').length;
         const resolved = (data || []).filter(r => r.status === 'Resolved').length;
 
-        // Try to get avg response time from backend
-        let avgResponse = '...';
+        let avgResponse = 'N/A';
         try {
           const res = await fetch(`${API_BASE}/api/analytics/resolution-times`);
           if (res.ok) {
@@ -61,11 +58,9 @@ function PublicDashboardPage() {
 
         setStats({ open, resolved, avgResponse });
 
-        // Build map markers from requests with location data
         const markers = (data || [])
           .filter(r => r.location_point)
           .map(r => {
-            // Extract coordinates from POINT(lng lat) format
             const match = r.location_point?.match(/POINT\(([-\d.]+) ([-\d.]+)\)/);
             if (match) {
               return {
@@ -95,45 +90,48 @@ function PublicDashboardPage() {
     setSelectedLocation(location);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Acknowledged': return '#f59e0b';
-      case 'In Progress': return '#3b82f6';
-      case 'Resolved': return '#10b981';
-      default: return '#6b7280';
-    }
-  };
-
   return (
     <article className="page-container public-dashboard">
+      {/* Hero Header */}
       <header className="dashboard-header">
-        <h1>🏛️ Municipal Connect</h1>
-        <p className="tagline">Report service issues in your ward. Track resolutions. Hold municipalities accountable.</p>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <p style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--mc-accent)', marginBottom: '8px' }}>
+            City of Johannesburg · Ward 58
+          </p>
+          <h1>
+            Municipal <strong>Connect</strong>
+          </h1>
+          <p className="tagline">
+            Report service issues in your ward. Track resolutions. Hold municipalities accountable.
+          </p>
+        </div>
       </header>
 
-      {/* Stats - Live from Supabase + Backend */}
+      {/* Stats Strip */}
       <section className="stats-compact" aria-label="Service delivery statistics">
         <div className="stat-item">
-          <span className="stat-value">{loading ? '...' : stats.open}</span>
+          <span className="stat-value">{loading ? '—' : stats.open}</span>
           <span className="stat-label">Open Requests</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">{loading ? '...' : stats.resolved}</span>
+          <span className="stat-value" style={{ color: 'var(--mc-accent)' }}>
+            {loading ? '—' : stats.resolved}
+          </span>
           <span className="stat-label">Resolved</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">{loading ? '...' : stats.avgResponse}</span>
+          <span className="stat-value">{loading ? '—' : stats.avgResponse}</span>
           <span className="stat-label">Avg Response</span>
         </div>
       </section>
 
-      {/* Interactive Map with Request Pins */}
-      <section className="map-section-large" aria-label="Ward boundary map">
+      {/* Map Section */}
+      <section className="map-section-large" aria-label="Ward boundary map" style={{ paddingLeft: '2rem', paddingRight: '2rem' }}>
         <h2>Service Delivery Map</h2>
         <p className="map-context">
           City of Johannesburg • Ward 58
           {mapMarkers.length > 0 && (
-            <span className="marker-count"> • {mapMarkers.length} requests shown</span>
+            <span className="marker-count"> · {mapMarkers.length} requests shown</span>
           )}
         </p>
         <figure className="large-map-container">
@@ -142,39 +140,47 @@ function PublicDashboardPage() {
             markers={mapMarkers}
           />
           <figcaption className="map-data-source">
-            <strong>Data Source:</strong> South African Municipal Demarcation Board (MDB) 2024
+            Data Source: South African Municipal Demarcation Board (MDB) 2024
           </figcaption>
         </figure>
+
         {selectedLocation && (
           <div className="selected-location-info">
             📍 Selected: {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
           </div>
         )}
-        
-        {/* Map Legend */}
+
         {mapMarkers.length > 0 && (
           <div className="map-legend">
             <span className="legend-item">
-              <span className="legend-dot" style={{ background: '#f59e0b' }}></span> Acknowledged
+              <span className="legend-dot" style={{ background: '#d97706' }}></span> Acknowledged
             </span>
             <span className="legend-item">
-              <span className="legend-dot" style={{ background: '#3b82f6' }}></span> In Progress
+              <span className="legend-dot" style={{ background: '#2176ae' }}></span> In Progress
             </span>
             <span className="legend-item">
-              <span className="legend-dot" style={{ background: '#10b981' }}></span> Resolved
+              <span className="legend-dot" style={{ background: '#2d6a4f' }}></span> Resolved
             </span>
           </div>
         )}
       </section>
 
-      {/* Recent Activity Feed */}
-      <section className="recent-activity-compact" aria-label="Recent reports">
+      {/* Recent Reports */}
+      <section
+        className="recent-activity-compact"
+        aria-label="Recent reports"
+        style={{ marginLeft: '2rem', marginRight: '2rem', marginTop: '1.5rem' }}
+      >
         <h3>Recent Reports in Your Area</h3>
 
         {loading ? (
-          <p className="loading-text">Loading reports...</p>
+          <p className="loading-text" style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--mc-muted)', fontSize: '0.875rem' }}>
+            Loading reports...
+          </p>
         ) : requests.length === 0 ? (
-          <p className="empty-state">No reports yet. Be the first to report an issue.</p>
+          <p className="empty-state" style={{ padding: '1.5rem', textAlign: 'center' }}>
+            No reports yet. Be the first to report an issue.
+          </p>
         ) : (
           <ul className="activity-list-compact">
             {requests.map((req) => (
@@ -185,7 +191,9 @@ function PublicDashboardPage() {
                 <span className="activity-detail">
                   <span className="activity-category">{req.category}</span>
                   {' — '}
-                  {req.location || 'Location not specified'}
+                  <span style={{ color: 'var(--mc-muted)', fontFamily: 'var(--mono)', fontSize: '0.78rem' }}>
+                    {req.location || 'Location not specified'}
+                  </span>
                 </span>
                 <span className="activity-time">{timeAgo(req.created_at)}</span>
               </li>
