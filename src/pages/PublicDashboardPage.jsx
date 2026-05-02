@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import InteractiveMap from '../components/InteractiveMap';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+
 const CATEGORY_ICONS = {
   pothole: '🕳️',
   'burst-pipe': '💧',
@@ -21,37 +23,85 @@ function timeAgo(dateStr) {
 
 function PublicDashboardPage() {
   const [requests, setRequests] = useState([]);
+  const [stats, setStats] = useState({ open: 0, resolved: 0, avgResponse: '...' });
   const [loading, setLoading] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [mapMarkers, setMapMarkers] = useState([]);
 
   useEffect(() => {
-    async function fetchRequests() {
-      const { data, error } = await supabase
-        .from('service_requests')
-        .select('id, category, location, status, created_at')
-        .order('created_at', { ascending: false })
-        .limit(10);
+    async function fetchDashboardData() {
+      try {
+        // Fetch recent requests from Supabase
+        const { data, error } = await supabase
+          .from('service_requests')
+          .select('id, category, location, location_point, status, created_at')
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-      if (error) {
-        console.error('Error fetching requests:', error.message);
-      } else {
+        if (error) throw error;
         setRequests(data || []);
+
+        // Calculate stats locally
+        const open = (data || []).filter(r => r.status !== 'Resolved').length;
+        const resolved = (data || []).filter(r => r.status === 'Resolved').length;
+
+        // Try to get avg response time from backend
+        let avgResponse = '...';
+        try {
+          const res = await fetch(`${API_BASE}/api/analytics/resolution-times`);
+          if (res.ok) {
+            const resolutionData = await res.json();
+            avgResponse = resolutionData.overall_average_hours
+              ? `${resolutionData.overall_average_hours}h`
+              : 'N/A';
+          }
+        } catch {
+          avgResponse = 'N/A';
+        }
+
+        setStats({ open, resolved, avgResponse });
+
+        // Build map markers from requests with location data
+        const markers = (data || [])
+          .filter(r => r.location_point)
+          .map(r => {
+            // Extract coordinates from POINT(lng lat) format
+            const match = r.location_point?.match(/POINT\(([-\d.]+) ([-\d.]+)\)/);
+            if (match) {
+              return {
+                id: r.id,
+                lat: parseFloat(match[2]),
+                lng: parseFloat(match[1]),
+                category: r.category,
+                status: r.status,
+              };
+            }
+            return null;
+          })
+          .filter(Boolean);
+
+        setMapMarkers(markers);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
 
-    fetchRequests();
+    fetchDashboardData();
   }, []);
 
-  // For now, use hardcoded stats until you have the actual data
-  const openCount = requests.filter(r => r.status !== 'Resolved').length;
-  const resolvedCount = requests.filter(r => r.status === 'Resolved').length;
-
-  // Handle map clicks (optional - for public dashboard, maybe just show info)
   const handleLocationSelect = (location) => {
     setSelectedLocation(location);
-    console.log('User clicked on map:', location);
-    // You could show a popup or filter requests near this location
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Acknowledged': return '#f59e0b';
+      case 'In Progress': return '#3b82f6';
+      case 'Resolved': return '#10b981';
+      default: return '#6b7280';
+    }
   };
 
   return (
@@ -61,49 +111,70 @@ function PublicDashboardPage() {
         <p className="tagline">Report service issues in your ward. Track resolutions. Hold municipalities accountable.</p>
       </header>
 
-      {/* Hero Stats - pulled from Supabase */}
+      {/* Stats - Live from Supabase + Backend */}
       <section className="stats-compact" aria-label="Service delivery statistics">
         <div className="stat-item">
-          <span className="stat-value">{loading ? '...' : openCount}</span>
+          <span className="stat-value">{loading ? '...' : stats.open}</span>
           <span className="stat-label">Open Requests</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">{loading ? '...' : resolvedCount}</span>
-          <span className="stat-label">Resolved This Month</span>
+          <span className="stat-value">{loading ? '...' : stats.resolved}</span>
+          <span className="stat-label">Resolved</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">3.2d</span>
+          <span className="stat-value">{loading ? '...' : stats.avgResponse}</span>
           <span className="stat-label">Avg Response</span>
         </div>
       </section>
 
-      {/* Interactive Map Section - REPLACED MapPlaceholder */}
+      {/* Interactive Map with Request Pins */}
       <section className="map-section-large" aria-label="Ward boundary map">
         <h2>Service Delivery Map</h2>
-        <p className="map-context">City of Johannesburg • Ward 58</p>
+        <p className="map-context">
+          City of Johannesburg • Ward 58
+          {mapMarkers.length > 0 && (
+            <span className="marker-count"> • {mapMarkers.length} requests shown</span>
+          )}
+        </p>
         <figure className="large-map-container">
-          <InteractiveMap onLocationSelect={handleLocationSelect} />
+          <InteractiveMap
+            onLocationSelect={handleLocationSelect}
+            markers={mapMarkers}
+          />
           <figcaption className="map-data-source">
             <strong>Data Source:</strong> South African Municipal Demarcation Board (MDB) 2024
-            <br />
-            <span style={{ fontSize: '12px' }}>📍 Click anywhere on the map to explore your area</span>
           </figcaption>
         </figure>
         {selectedLocation && (
-          <div className="selected-location-info" style={{ marginTop: '8px', fontSize: '12px', textAlign: 'center', color: '#666' }}>
-            Selected: {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
+          <div className="selected-location-info">
+            📍 Selected: {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
+          </div>
+        )}
+        
+        {/* Map Legend */}
+        {mapMarkers.length > 0 && (
+          <div className="map-legend">
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: '#f59e0b' }}></span> Acknowledged
+            </span>
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: '#3b82f6' }}></span> In Progress
+            </span>
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: '#10b981' }}></span> Resolved
+            </span>
           </div>
         )}
       </section>
 
-      {/* Recent Activity Feed - live from Supabase */}
+      {/* Recent Activity Feed */}
       <section className="recent-activity-compact" aria-label="Recent reports">
         <h3>Recent Reports in Your Area</h3>
 
         {loading ? (
-          <p style={{ color: '#888', padding: '1rem 0' }}>Loading reports...</p>
+          <p className="loading-text">Loading reports...</p>
         ) : requests.length === 0 ? (
-          <p style={{ color: '#888', padding: '1rem 0' }}>No reports yet. Be the first to report an issue.</p>
+          <p className="empty-state">No reports yet. Be the first to report an issue.</p>
         ) : (
           <ul className="activity-list-compact">
             {requests.map((req) => (
@@ -112,7 +183,9 @@ function PublicDashboardPage() {
                   {CATEGORY_ICONS[req.category] || '📋'}
                 </span>
                 <span className="activity-detail">
-                  {req.category} reported — {req.location || 'Location not specified'}
+                  <span className="activity-category">{req.category}</span>
+                  {' — '}
+                  {req.location || 'Location not specified'}
                 </span>
                 <span className="activity-time">{timeAgo(req.created_at)}</span>
               </li>

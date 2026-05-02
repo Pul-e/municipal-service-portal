@@ -1079,33 +1079,6 @@ textarea:focus-visible {
 }
 
 /* ============================================
-   RESPONSIVE
-   ============================================ */
-@media (max-width: 768px) {
-  .role-cards {
-    grid-template-columns: 1fr;
-  }
-  
-  .stats-compact {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .dashboard-actions {
-    flex-direction: column;
-  }
-  
-  .navbar {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .nav-links ul {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-}
-/* ============================================
    MANAGE USERS PAGE
    ============================================ */
 .admin-stats {
@@ -1248,7 +1221,402 @@ textarea:focus-visible {
   margin-top: 1.5rem;
 }
 
+/* ============================================
+   FEEDBACK SYSTEM
+   ============================================ */
+.request-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.feedback-btn {
+  background: #ffd700;
+  color: #1a4d2e;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.feedback-btn:hover {
+  background: #ffed4a;
+}
+
+.feedback-submitted-badge {
+  font-size: 0.8rem;
+  color: #27ae60;
+  font-weight: 500;
+}
+
+.feedback-form-container {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.feedback-form-container h4 {
+  margin-bottom: 0.25rem;
+  color: #1a4d2e;
+}
+
+.feedback-request-info {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.star-rating {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s;
+}
+
+.star-btn:hover {
+  transform: scale(1.2);
+}
+
+.star-btn.active {
+  color: #ffd700;
+}
+
+.feedback-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.submit-feedback-btn {
+  background: #1a4d2e;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.submit-feedback-btn:hover:not(:disabled) {
+  background: #2d6a4f;
+}
+
+.submit-feedback-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancel-feedback-btn {
+  background: white;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 0.5rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancel-feedback-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.cancel-feedback-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.feedback-error {
+  color: #e74c3c;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.feedback-toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: #27ae60;
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   ANALYTICS DASHBOARD
+   ============================================ */
+.loading-text {
+  text-align: center;
+  color: #888;
+  padding: 3rem 0;
+  font-size: 1.1rem;
+}
+
+.report-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.report-tab {
+  padding: 0.6rem 1.5rem;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.report-tab.active {
+  background: #1a4d2e;
+  color: white;
+  border-color: #1a4d2e;
+}
+
+.report-tab:hover:not(.active) {
+  background: #f5f5f5;
+}
+
+.export-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.export-btn {
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.export-btn.csv {
+  background: #27ae60;
+  color: white;
+}
+
+.export-btn.csv:hover {
+  background: #219a52;
+}
+
+.export-btn.pdf {
+  background: #e74c3c;
+  color: white;
+}
+
+.export-btn.pdf:hover {
+  background: #c0392b;
+}
+
+.report-section {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
+}
+
+.report-section h2 {
+  margin-bottom: 1.5rem;
+  color: #1a4d2e;
+}
+
+.report-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.report-stat-card {
+  background: #f8f9fa;
+  padding: 1.5rem 2rem;
+  border-radius: 8px;
+  text-align: center;
+  flex: 1;
+}
+
+.report-stat-card.highlight {
+  background: #e8f4e8;
+}
+
+.report-stat-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1a4d2e;
+}
+
+.report-stat-label {
+  font-size: 0.85rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chart-section {
+  margin-bottom: 2rem;
+}
+
+.chart-section h3 {
+  margin-bottom: 1rem;
+  color: #444;
+}
+
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bar-label {
+  min-width: 130px;
+  font-weight: 500;
+  color: #555;
+  text-transform: capitalize;
+}
+
+.bar-track {
+  flex: 1;
+  background: #f0f0f0;
+  border-radius: 4px;
+  height: 30px;
+  overflow: visible;
+}
+
+.bar-fill {
+  background: #1a4d2e;
+  height: 100%;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  min-width: 40px;
+  transition: width 0.5s ease;
+}
+
+.bar-fill.resolution-bar {
+  background: #2980b9;
+}
+
+.bar-value {
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.bar-extra {
+  font-size: 0.8rem;
+  color: #888;
+  min-width: 90px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.status-card {
+  background: #f8f9fa;
+  padding: 1.25rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.status-count {
+  display: block;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1a4d2e;
+}
+
+.status-name {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.rank-badge {
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.rank-1 { color: #ffd700; }
+.rank-2 { color: #c0c0c0; }
+.rank-3 { color: #cd7f32; }
+
+.report-timestamp {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  color: #aaa;
+  text-align: right;
+  font-style: italic;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
 @media (max-width: 768px) {
+  .role-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-compact {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .dashboard-actions {
+    flex-direction: column;
+  }
+  
+  .navbar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .nav-links ul {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
   .admin-stats {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1256,4 +1624,67 @@ textarea:focus-visible {
   .management-buttons {
     flex-direction: column;
   }
+  
+  .report-stats {
+    flex-direction: column;
+  }
+  
+  .bar-label {
+    min-width: 90px;
+    font-size: 0.85rem;
+  }
+  
+  .report-tabs {
+    flex-direction: column;
+  }
+  
+  .export-actions {
+    flex-direction: column;
+  }
+}
+/* Map Legend */
+.map-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.marker-count {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.selected-location-info {
+  margin-top: 8px;
+  font-size: 12px;
+  text-align: center;
+  color: #666;
+}
+
+.activity-category {
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #1a4d2e;
+}
+
+.loading-text {
+  color: #888;
+  padding: 1rem 0;
+  text-align: center;
 }

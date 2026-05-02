@@ -9,6 +9,7 @@ import WorkerDashboardPage from './pages/WorkerDashboardPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import ManageUsersPage from './pages/admin/ManageUsersPage';
+import AnalyticsDashboardPage from './pages/AnalyticsDashboardPage';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           {/* Admin Routes (Protected - Sprint 2) */}
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="/admin/users" element={<ManageUsersPage />} />
+          <Route path="/admin/analytics" element={<AnalyticsDashboardPage />} />
         </Routes>
       </main>
     </div>

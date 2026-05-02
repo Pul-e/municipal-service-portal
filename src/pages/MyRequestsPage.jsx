@@ -15,9 +15,16 @@ function MyRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
 
+  // Feedback state
+  const [feedbackOpen, setFeedbackOpen] = useState(null); // request id
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [feedbackSuccess, setFeedbackSuccess] = useState(null); // request id
+  const [feedbackError, setFeedbackError] = useState('');
+
   useEffect(() => {
     async function fetchMyRequests() {
-      // Get the currently logged-in user
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
@@ -41,6 +48,47 @@ function MyRequestsPage() {
 
     fetchMyRequests();
   }, []);
+
+  const handleSubmitFeedback = async (requestId) => {
+    setSubmitting(true);
+    setFeedbackError('');
+
+    try {
+      const { error } = await supabase
+        .from('feedback')
+        .insert({
+          request_id: requestId,
+          rating: rating,
+          comment: comment,
+        });
+
+      if (error) throw error;
+
+      setFeedbackSuccess(requestId);
+      setFeedbackOpen(null);
+      setRating(0);
+      setComment('');
+
+      // Update local state to show feedback submitted
+      setRequests(requests.map(req =>
+        req.id === requestId ? { ...req, feedback_submitted: true } : req
+      ));
+
+      setTimeout(() => setFeedbackSuccess(null), 3000);
+    } catch (err) {
+      setFeedbackError('Failed to submit feedback. Please try again.');
+      console.error('Feedback error:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openFeedback = (requestId) => {
+    setFeedbackOpen(requestId);
+    setRating(0);
+    setComment('');
+    setFeedbackError('');
+  };
 
   const filteredRequests = requests.filter((req) => {
     if (activeFilter === 'all') return true;
@@ -126,13 +174,89 @@ function MyRequestsPage() {
                     <time dateTime={request.created_at} className="request-date">
                       📅 Reported {timeAgo(request.created_at)}
                     </time>
-                    <button
-                      className="view-details-btn"
-                      aria-label={`View details for ${request.category} at ${request.location}`}
-                    >
-                      View Details →
-                    </button>
+                    <div className="request-actions">
+                      <button
+                        className="view-details-btn"
+                        aria-label={`View details for ${request.category} at ${request.location}`}
+                      >
+                        View Details →
+                      </button>
+
+                      {/* Feedback Button - Only for resolved requests */}
+                      {request.status === 'Resolved' && !request.feedback_submitted && (
+                        <button
+                          className="feedback-btn"
+                          onClick={() => openFeedback(request.id)}
+                          aria-label={`Leave feedback for ${request.category}`}
+                        >
+                          ⭐ Rate Service
+                        </button>
+                      )}
+
+                      {/* Feedback Submitted Badge */}
+                      {request.feedback_submitted && (
+                        <span className="feedback-submitted-badge">✅ Feedback Submitted</span>
+                      )}
+                    </div>
                   </footer>
+
+                  {/* Feedback Form (Expandable) */}
+                  {feedbackOpen === request.id && (
+                    <div className="feedback-form-container">
+                      <h4>Rate Your Experience</h4>
+                      <p className="feedback-request-info">
+                        {request.category} at {request.location}
+                      </p>
+
+                      {/* Star Rating */}
+                      <div className="star-rating" role="radiogroup" aria-label="Rate your experience">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            className={`star-btn ${star <= rating ? 'active' : ''}`}
+                            onClick={() => setRating(star)}
+                            aria-label={`${star} star${star !== 1 ? 's' : ''}`}
+                          >
+                            {star <= rating ? '⭐' : '☆'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Comment */}
+                      <div className="form-group">
+                        <label htmlFor={`comment-${request.id}`}>Additional Comments (Optional)</label>
+                        <textarea
+                          id={`comment-${request.id}`}
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="Tell us about your experience..."
+                          rows="3"
+                        />
+                      </div>
+
+                      {feedbackError && (
+                        <p className="feedback-error" role="alert">{feedbackError}</p>
+                      )}
+
+                      <div className="feedback-actions">
+                        <button
+                          className="submit-feedback-btn"
+                          onClick={() => handleSubmitFeedback(request.id)}
+                          disabled={rating === 0 || submitting}
+                        >
+                          {submitting ? 'Submitting...' : 'Submit Feedback'}
+                        </button>
+                        <button
+                          className="cancel-feedback-btn"
+                          onClick={() => setFeedbackOpen(null)}
+                          disabled={submitting}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </article>
               </li>
             ))}
@@ -143,6 +267,13 @@ function MyRequestsPage() {
           </div>
         )}
       </section>
+
+      {/* Feedback Success Toast */}
+      {feedbackSuccess && (
+        <div className="feedback-toast" role="status" aria-live="polite">
+          ✅ Thank you for your feedback!
+        </div>
+      )}
 
       {/* Help Section */}
       <aside className="help-section" aria-label="Help and information">
