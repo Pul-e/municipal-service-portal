@@ -35,7 +35,7 @@ function MyRequestsPage() {
 
       const { data, error } = await supabase
         .from('service_requests')
-        .select('*')
+        .select('*, municipality, ward')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -172,7 +172,10 @@ function MyRequestsPage() {
                   </header>
 
                   <address className="request-location">
-                    📍 {request.location || 'Location not specified'}
+                    📍 {request.municipality && request.ward
+                          ? `${request.municipality}, Ward ${request.ward}`
+                          : (request.location || 'Location not specified')
+                        }
                   </address>
 
                   <footer className="request-footer">

@@ -11,14 +11,18 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-function InteractiveMap({ onLocationSelect }) {
+function InteractiveMap({ onLocationSelect, markers = [] }) {
   const [position, setPosition] = useState(null);
 
   function MapClickHandler() {
-    useMapEvents({
+    const map = useMapEvents({
       click(e) {
+        // Set marker position
         setPosition(e.latlng);
         onLocationSelect({ lat: e.latlng.lat, lng: e.latlng.lng });
+        
+        // Zoom in to clicked location (zoom level 15 for street-level detail)
+        map.flyTo(e.latlng, 12, { duration: 0.5 });
       },
     });
     return null;
@@ -26,8 +30,8 @@ function InteractiveMap({ onLocationSelect }) {
 
   return (
     <MapContainer
-      center={[-26.195, 28.034]}
-      zoom={12}
+      center={[-29.0, 24.0]}
+      zoom={5}
       style={{ height: '400px', width: '100%' }}
     >
       <TileLayer
@@ -35,7 +39,29 @@ function InteractiveMap({ onLocationSelect }) {
         attribution='&copy; OpenStreetMap contributors'
       />
       <MapClickHandler />
+            {/* User's selected marker (default blue) */}
       {position && <Marker position={position} />}
+
+      {/* Existing report markers with colour coding */}
+      {markers.map(marker => {
+        let iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png';
+        if (marker.status === 'In Progress') {
+          iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png';
+        } else if (marker.status === 'Resolved') {
+          iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png';
+        }
+        
+        const customIcon = new L.Icon({
+          iconUrl: iconUrl,
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41]
+        });
+        
+        return <Marker key={marker.id} position={[marker.lat, marker.lng]} icon={customIcon} />;
+      })}
     </MapContainer>
   );
 }
