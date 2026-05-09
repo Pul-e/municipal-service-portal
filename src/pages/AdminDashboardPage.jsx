@@ -19,16 +19,54 @@ function AdminDashboardPage() {
         if (userError) throw userError;
         setUser(user);
 
-        const [reqRes, staffRes] = await Promise.all([
-          supabase.from('service_requests').select('*').order('created_at', { ascending: false }),
-          supabase.from('profiles').select('id, full_name, role').in('role', ['staff', 'worker']),
-        ]);
+        // 2. Fetch all service requests
+        const { data: requestsData, error: reqError } = await supabase
+          .from('service_requests')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (reqError) throw reqError;
 
-        if (reqRes.error) throw reqRes.error;
-        if (staffRes.error) throw staffRes.error;
+        // 3. Fetch staff list (for dropdown and names)
+        const { data: staffData, error: staffError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, role')
+          .in('role', ['staff', 'worker']);
+        if (staffError) throw staffError;
+        setStaffList(staffData || []);
 
-        setRequests(reqRes.data || []);
-        setStaffList(staffRes.data || []);
+        // 4. Fetch active assignments (unassigned_at IS NULL) – without join
+        const { data: assignments, error: assignError } = await supabase
+            .from('service_request_assignments')
+            .select('request_id, staff_id')
+            .is('unassigned_at', null);
+        if (assignError) throw assignError;
+
+        // 5. Build a map from staff_id → full_name using the already loaded staffList
+        const staffNameMap = new Map();
+        staffList.forEach(staff => {
+            staffNameMap.set(staff.id, staff.full_name || staff.email || 'Unknown');
+        });
+
+        // 6. Create a map: request_id → { staff_id, staff_name }
+        const assignmentMap = new Map();
+        assignments?.forEach(assign => {
+            assignmentMap.set(assign.request_id, {
+                staff_id: assign.staff_id,
+                staff_name: staffNameMap.get(assign.staff_id) || 'Unknown'
+            });
+        });
+
+        // 7. Merge assignment info into requests
+        const mergedRequests = requestsData.map(req => ({
+          ...req,
+          assigned: assignmentMap.has(req.id),
+          assigned_staff_id: assignmentMap.get(req.id)?.staff_id,
+          assigned_staff_name: assignmentMap.get(req.id)?.staff_name
+        }));
+
+        setRequests(mergedRequests);
+
+
       } catch (err) {
         console.error(err);
         setError(`Error: ${err.message || 'Failed to load admin dashboard.'}`);
@@ -38,7 +76,6 @@ function AdminDashboardPage() {
     };
     load();
   }, []);
-
   const handleAssign = async (requestId, staffId) => {
     try {
         if (!staffId) return;
@@ -52,24 +89,29 @@ function AdminDashboardPage() {
             });
         if (assignError) throw assignError;
 
-        // Update the service_request to mark it as assigned
-        const { error: updateError } = await supabase
-            .from('service_requests')
-            .update({ assigned: true, status: 'Assigned' })
-            .eq('id', requestId);
-        if (updateError) throw updateError;
+      // Get the staff name from current staffList
+      const assignedStaff = staffList.find(s => s.id === staffId);
+      const staffName = assignedStaff?.full_name || assignedStaff?.email || 'Worker';
 
-        // Update local state
-        setRequests((prev) =>
-            prev.map((req) =>
-                req.id === requestId ? { ...req, assigned: true, status: 'Assigned' } : req
-            )
-        );
+      // Update local state
+      setRequests((prev) =>
+        prev.map((req) =>
+          req.id === requestId
+            ? {
+                ...req,
+                assigned: true,
+                assigned_staff_id: staffId,
+                assigned_staff_name: staffName,
+                status: 'Assigned'
+              }
+            : req
+        )
+      );
     } catch (err) {
-        console.error(err);
-        setError('Failed to assign request.');
+      console.error(err);
+      setError('Failed to assign request.');
     }
-};
+  };
 
   const resolvedCount = requests.filter(r => r.status === 'Resolved').length;
 
@@ -212,7 +254,10 @@ function AdminDashboardPage() {
                   </span>
                 </div>
                 <div>
-                  {!req.assigned ? (
+                  {!req.assigned &&
+                   req.status !== 'Resolved' &&
+                   req.status !== 'In Progress' &&
+                   req.status !== 'Acknowledged' ? (
                     <select
                       defaultValue=""
                       onChange={(e) => handleAssign(req.id, e.target.value)}
@@ -230,12 +275,18 @@ function AdminDashboardPage() {
                     >
                       <option value="" disabled>Assign to staff...</option>
                       {staffList.map((s) => (
-                        <option key={s.id} value={s.id}>{s.full_name || s.email || 'Unnamed Worker'}</option>
+                        <option key={s.id} value={s.id}>
+                          {s.full_name || s.email || 'Unnamed Worker'}
+                        </option>
                       ))}
                     </select>
                   ) : (
                     <span style={{ fontSize: '0.75rem', color: 'var(--mc-success)', fontFamily: 'var(--mono)' }}>
-                      Assigned ✓
+                      {req.assigned_staff_name ||
+                        (req.status === 'Resolved' ? '✓ Resolved' :
+                         req.status === 'In Progress' ? '⟳ In Progress' :
+                         req.status === 'Acknowledged' ? '📋 Acknowledged' :
+                         req.assigned ? 'Assigned' : '—')}
                     </span>
                   )}
                 </div>

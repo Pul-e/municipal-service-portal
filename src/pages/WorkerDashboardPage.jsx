@@ -17,57 +17,77 @@ function WorkerDashboardPage() {
     }, []);
 
     const loadDashboard = async () => {
-        setLoading(true);
-        setError(null);
+    setLoading(true);
+    setError(null);
 
-        try {
-            const { data: authData, error: userError } = await supabase.auth.getUser();
-            if (userError) throw userError;
-            const currentUser = authData?.user;
-            if (!currentUser) {
-                setLoading(false);
-                return;
-            }
-            setUser(currentUser);
-
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', currentUser.id)
-                .single();
-            if (profileError && profileError.code !== 'PGRST116') throw profileError;
-            setProfile(profileData);
-
-            await Promise.all([fetchAssignedRequests(), fetchUnassignedRequests()]);
-        } catch (err) {
-            console.error('loadDashboard error:', err);
-            setError(`Failed to load dashboard data: ${err.message}`);
-        } finally {
+    try {
+        const { data: authData, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        const currentUser = authData?.user;
+        if (!currentUser) {
             setLoading(false);
+            return;
         }
-    };
+        setUser(currentUser);
+        
+        // Store the ID for use in fetches (avoid state race)
+        const userId = currentUser.id;
+
+        const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+        if (profileError && profileError.code !== 'PGRST116') throw profileError;
+        setProfile(profileData);
+
+        // Pass userId explicitly
+        await Promise.all([fetchAssignedRequests(userId), fetchUnassignedRequests()]);
+    } catch (err) {
+        console.error('loadDashboard error:', err);
+        setError(`Failed to load dashboard data: ${err.message}`);
+    } finally {
+        setLoading(false);
+    }
+};
 
     // Requests assigned to this worker (via service_request_assignments)
-    const fetchAssignedRequests = async () => {
-        if (!user?.id) return;
-        const { data, error } = await supabase
-            .from('service_request_assignments')
-            .select(`
-                request_id,
-                assigned_at,
-                assigned_by,
-                service_requests (*)
-            `)
-            .eq('staff_id', user.id)
-            .is('unassigned_at', null);
+    const fetchAssignedRequests = async (userId) => {
+    if (!userId) {
+        setAssignedRequests([]);
+        return;
+    }
 
-        if (error) throw error;
+    console.log('Fetching assignments for staff_id:', userId);
 
-        const requests = data
-            .filter(item => item.service_requests && item.service_requests.status !== 'Resolved')
-            .map(item => ({ ...item.service_requests, assignment_id: item.request_id }));
-        setAssignedRequests(requests);
-    };
+    const { data: assignments, error: assignError } = await supabase
+        .from('service_request_assignments')
+        .select('request_id, assigned_at, assigned_by')
+        .eq('staff_id', userId)
+        .is('unassigned_at', null);
+    if (assignError) throw assignError;
+
+    if (!assignments || assignments.length === 0) {
+        setAssignedRequests([]);
+        return;
+    }
+
+    const requestIds = assignments.map(a => a.request_id);
+    const { data: requestsData, error: reqError } = await supabase
+        .from('service_requests')
+        .select('*')
+        .in('id', requestIds)
+        .neq('status', 'Resolved');
+    if (reqError) throw reqError;
+
+    const merged = requestsData.map(req => ({
+        ...req,
+        assignment_id: assignments.find(a => a.request_id === req.id)?.request_id,
+        assigned_by_admin: assignments.find(a => a.request_id === req.id)?.assigned_by
+    }));
+
+    setAssignedRequests(merged);
+};
 
     // Unassigned requests: not resolved and no active assignment
     const fetchUnassignedRequests = async () => {
