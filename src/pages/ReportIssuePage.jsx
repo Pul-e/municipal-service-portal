@@ -12,6 +12,9 @@ function ReportIssuePage() {
   const [error, setError] = useState('');
   const [wardInfo, setWardInfo] = useState(null);
   const [reportMarkers, setReportMarkers] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Fetch existing reports to show as coloured markers on the map
   useEffect(() => {
@@ -63,80 +66,144 @@ function ReportIssuePage() {
     fetchExistingReports();
   }, []);
 
-  // Handle location selection from the map
-const handleLocationSelect = async (location) => {
-  setSelectedLocation(location);
-  
-  try {
-    // Call Supabase RPC directly (no backend needed)
-    const { data, error } = await supabase
-      .rpc('get_ward_from_location', { 
-        lat: location.lat, 
-        lng: location.lng 
-      });
-    
-    if (data && data.length > 0) {
-      setWardInfo({
-        ward_number: data[0].ward_no,
-        municipality: data[0].municipali,
-        province: data[0].province,
-        ward_id: data[0].ward_id
-      });
+  // Handle image selection
+  const handleImageSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image must be less than 5MB');
+        e.target.value = '';
+        return;
+      }
+      
+      // Check file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setError('Only JPEG, PNG, GIF, or WEBP images are allowed');
+        e.target.value = '';
+        return;
+      }
+      
+      setSelectedImage(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
     } else {
+      setSelectedImage(null);
+      setImagePreview(null);
+    }
+  };
+
+  // Handle location selection from the map
+  const handleLocationSelect = async (location) => {
+    setSelectedLocation(location);
+    
+    try {
+      // Call Supabase RPC directly (no backend needed)
+      const { data, error } = await supabase
+        .rpc('get_ward_from_location', { 
+          lat: location.lat, 
+          lng: location.lng 
+        });
+      
+      if (data && data.length > 0) {
+        setWardInfo({
+          ward_number: data[0].ward_no,
+          municipality: data[0].municipali,
+          province: data[0].province,
+          ward_id: data[0].ward_id
+        });
+      } else {
+        setWardInfo(null);
+      }
+    } catch (error) {
+      console.error('Failed to fetch ward info:', error);
       setWardInfo(null);
     }
-  } catch (error) {
-    console.error('Failed to fetch ward info:', error);
-    setWardInfo(null);
-  }
-};
+  };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  if (!selectedLocation) {
-    setError('Please click on the map to select your location');
+    if (!selectedLocation) {
+      setError('Please click on the map to select your location');
+      setLoading(false);
+      return;
+    }
+
+    // Get the current user
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+
+    if (!userId) {
+      setError('You must be signed in to submit a report');
+      setLoading(false);
+      return;
+    }
+
+    let imageUrl = null;
+
+    // Upload image if selected
+    if (selectedImage) {
+      setUploadingImage(true);
+      const fileExt = selectedImage.name.split('.').pop();
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(2, 8);
+      const fileName = `${timestamp}_${randomString}.${fileExt}`;
+      const filePath = `requests/${userId}/${fileName}`;
+
+      const { error: uploadError, data: uploadData } = await supabase.storage
+        .from('request-images')
+        .upload(filePath, selectedImage, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Image upload error:', uploadError);
+        setError('Warning: Failed to upload image. Your report will be submitted without it.');
+      } else {
+        const { data: urlData } = supabase.storage
+          .from('request-images')
+          .getPublicUrl(filePath);
+        imageUrl = urlData.publicUrl;
+      }
+      setUploadingImage(false);
+    }
+
+    const locationPoint = `POINT(${selectedLocation.lng} ${selectedLocation.lat})`;
+
+    const { error: insertError } = await supabase
+      .from('service_requests')
+      .insert({
+        category,
+        description,
+        location: locationPoint,
+        location_point: locationPoint,
+        status: 'Pending',
+        user_id: userId,
+        ward: String(wardInfo?.ward_number || ''),
+        municipality: wardInfo?.municipality || '',
+        image_url: imageUrl,
+      });
+
     setLoading(false);
-    return;
-  }
 
-  // Get the current user
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData.user?.id;
-
-  if (!userId) {
-    setError('You must be signed in to submit a report');
-    setLoading(false);
-    return;
-  }
-
-  const locationText = `Lat: ${selectedLocation.lat.toFixed(6)}, Lng: ${selectedLocation.lng.toFixed(6)}`;
-  const locationPoint = `POINT(${selectedLocation.lng} ${selectedLocation.lat})`;
-
-const { error: insertError } = await supabase
-  .from('service_requests')
-  .insert({
-    category,
-    description,
-    location: locationText,
-    location_point: locationPoint,
-    status: 'Pending',
-    user_id: userId,
-    ward: String(wardInfo?.ward_number || ''),
-    municipality: wardInfo?.municipality || '',
-  });
-
-  setLoading(false);
-
-  if (insertError) {
-    setError('Failed to submit report: ' + insertError.message);
-  } else {
-    alert('Report submitted successfully!');
-    navigate('/my-requests');
-  }
-};
+    if (insertError) {
+      setError('Failed to submit report: ' + insertError.message);
+    } else {
+      alert('Report submitted successfully!');
+      navigate('/my-requests');
+    }
+  };
 
   return (
     <article className="page-container">
@@ -187,7 +254,33 @@ const { error: insertError } = await supabase
 
           <div className="form-field">
             <label htmlFor="photo">Upload Photo (Optional)</label>
-            <input type="file" id="photo" accept="image/*" className="file-input" />
+            <input 
+              type="file" 
+              id="photo" 
+              accept="image/*" 
+              className="file-input" 
+              onChange={handleImageSelect}
+            />
+            {imagePreview && (
+              <div style={{ marginTop: '10px' }}>
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  style={{ maxWidth: '200px', maxHeight: '150px', borderRadius: '4px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedImage(null);
+                    setImagePreview(null);
+                    document.getElementById('photo').value = '';
+                  }}
+                  style={{ marginLeft: '10px', padding: '4px 8px', fontSize: '12px' }}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
           </div>
         </fieldset>
 
@@ -212,7 +305,7 @@ const { error: insertError } = await supabase
                     <strong>🏛️ Ward (auto-detected):</strong> Ward {wardInfo.ward_number} - {wardInfo.municipality}
                     <br />
                     <span style={{ fontSize: '0.9em', color: '#666' }}>
-                      Data source: {wardInfo.data_source}
+                      Data source: Municipal Demarcation Board (MDB) 2024
                     </span>
                   </>
                 )}
@@ -232,9 +325,9 @@ const { error: insertError } = await supabase
         <button 
           type="submit" 
           className="submit-btn" 
-          disabled={loading || !selectedLocation}
+          disabled={loading || uploadingImage || !selectedLocation}
         >
-          {loading ? 'Submitting...' : 'Submit Report'}
+          {loading || uploadingImage ? 'Submitting...' : 'Submit Report'}
         </button>
 
       </form>
