@@ -51,37 +51,50 @@ function MyRequestsPage() {
   }, []);
 
   const handleSubmitFeedback = async (requestId) => {
-    setSubmitting(true);
-    setFeedbackError('');
+  setSubmitting(true);
+  setFeedbackError('');
 
-    try {
-      const { error } = await supabase
-        .from('feedback')
-        .insert({
-          request_id: requestId,
-          rating: rating,
-          comment: comment,
-        });
-
-      if (error) throw error;
-
-      setFeedbackSuccess(requestId);
-      setFeedbackOpen(null);
-      setRating(0);
-      setComment('');
-
-      setRequests(requests.map(req =>
-        req.id === requestId ? { ...req, feedback_submitted: true } : req
-      ));
-
-      setTimeout(() => setFeedbackSuccess(null), 3000);
-    } catch (err) {
-      setFeedbackError('Failed to submit feedback. Please try again.');
-      console.error('Feedback error:', err);
-    } finally {
-      setSubmitting(false);
+  try {
+    // Get the current logged-in user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) throw userError;
+    if (!user) {
+      throw new Error('You must be logged in to submit feedback');
     }
-  };
+
+    // Insert feedback with user_id
+    const { error: insertError } = await supabase
+      .from('feedback')
+      .insert({
+        request_id: requestId,
+        user_id: user.id,  // ← This is the critical missing field
+        rating: rating,
+        comment: comment,
+      });
+
+    if (insertError) throw insertError;
+
+    // Success!
+    setFeedbackSuccess(requestId);
+    setFeedbackOpen(null);
+    setRating(0);
+    setComment('');
+
+    // Update local state to show feedback submitted
+    setRequests(requests.map(req =>
+      req.id === requestId ? { ...req, feedback_submitted: true } : req
+    ));
+
+    setTimeout(() => setFeedbackSuccess(null), 3000);
+    
+  } catch (err) {
+    console.error('Feedback error details:', err);
+    setFeedbackError('Failed to submit feedback: ' + (err.message || 'Please try again'));
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const openFeedback = (requestId) => {
     setFeedbackOpen(requestId);
