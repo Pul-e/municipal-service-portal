@@ -27,23 +27,87 @@ function MyRequestsPage() {
   useEffect(() => {
     async function fetchMyRequests() {
       const { data: { user } } = await supabase.auth.getUser();
-
       if (!user) {
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
+      // 1. Fetch all service requests for this resident
+      const { data: requestsData, error } = await supabase
         .from('service_requests')
-        .select('*, municipality, ward')
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching requests:', error.message);
-      } else {
-        setRequests(data || []);
+        setLoading(false);
+        return;
       }
+
+      if (!requestsData || requestsData.length === 0) {
+        setRequests([]);
+        setLoading(false);
+        return;
+      }
+
+      const requestIds = requestsData.map(r => r.id);
+
+      // 2. Fetch the most recent assignment per request (to show assigned worker)
+      const { data: assignments, error: assignError } = await supabase
+        .from('service_request_assignments')
+        .select('request_id, staff_id, assigned_at')
+        .in('request_id', requestIds)
+        .order('assigned_at', { ascending: false });
+
+      if (assignError) console.error('Error fetching assignments:', assignError.message);
+
+      // Build a map: request_id -> most recent assignment
+      const assignmentMap = new Map();
+      assignments?.forEach(assign => {
+        if (!assignmentMap.has(assign.request_id)) {
+          assignmentMap.set(assign.request_id, assign);
+        }
+      });
+
+      // 3. Get all unique staff IDs from those assignments
+      const staffIds = [...new Set(assignments?.map(a => a.staff_id).filter(Boolean))];
+      let staffNameMap = new Map();
+      if (staffIds.length) {
+        const { data: staffData, error: staffError } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', staffIds);
+        if (!staffError && staffData) {
+          staffData.forEach(staff => {
+            staffNameMap.set(staff.id, staff.full_name || 'Unknown');
+          });
+        }
+      }
+
+      // 4. Fetch existing feedback (to know which requests already have feedback)
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from('feedback')
+        .select('request_id')
+        .in('request_id', requestIds);
+      if (feedbackError) console.error('Error fetching feedback:', feedbackError.message);
+      const feedbackSet = new Set(feedbackData?.map(f => f.request_id) || []);
+
+      // 5. Merge everything into the final request objects
+      const enrichedRequests = requestsData.map(req => {
+        const assignment = assignmentMap.get(req.id);
+        let assignedWorkerName = null;
+        if (assignment && assignment.staff_id) {
+          assignedWorkerName = staffNameMap.get(assignment.staff_id) || 'Former worker';
+        }
+        return {
+          ...req,
+          assigned_worker_name: assignedWorkerName,
+          feedback_submitted: feedbackSet.has(req.id)
+        };
+      });
+
+      setRequests(enrichedRequests);
       setLoading(false);
     }
 
@@ -51,50 +115,45 @@ function MyRequestsPage() {
   }, []);
 
   const handleSubmitFeedback = async (requestId) => {
-  setSubmitting(true);
-  setFeedbackError('');
+    setSubmitting(true);
+    setFeedbackError('');
 
-  try {
-    // Get the current logged-in user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError) throw userError;
-    if (!user) {
-      throw new Error('You must be logged in to submit feedback');
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error('You must be logged in to submit feedback');
+
+      const { error: insertError } = await supabase
+        .from('feedback')
+        .insert({
+          request_id: requestId,
+          user_id: user.id,
+          rating: rating,
+          comment: comment,
+        });
+
+      if (insertError) throw insertError;
+
+      setFeedbackSuccess(requestId);
+      setFeedbackOpen(null);
+      setRating(0);
+      setComment('');
+
+      // Update local state to show feedback submitted
+      setRequests(prev =>
+        prev.map(req =>
+          req.id === requestId ? { ...req, feedback_submitted: true } : req
+        )
+      );
+
+      setTimeout(() => setFeedbackSuccess(null), 3000);
+    } catch (err) {
+      console.error('Feedback error details:', err);
+      setFeedbackError('Failed to submit feedback: ' + (err.message || 'Please try again'));
+    } finally {
+      setSubmitting(false);
     }
-
-    // Insert feedback with user_id
-    const { error: insertError } = await supabase
-      .from('feedback')
-      .insert({
-        request_id: requestId,
-        user_id: user.id,  // ← This is the critical missing field
-        rating: rating,
-        comment: comment,
-      });
-
-    if (insertError) throw insertError;
-
-    // Success!
-    setFeedbackSuccess(requestId);
-    setFeedbackOpen(null);
-    setRating(0);
-    setComment('');
-
-    // Update local state to show feedback submitted
-    setRequests(requests.map(req =>
-      req.id === requestId ? { ...req, feedback_submitted: true } : req
-    ));
-
-    setTimeout(() => setFeedbackSuccess(null), 3000);
-    
-  } catch (err) {
-    console.error('Feedback error details:', err);
-    setFeedbackError('Failed to submit feedback: ' + (err.message || 'Please try again'));
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
 
   const openFeedback = (requestId) => {
     setFeedbackOpen(requestId);
@@ -115,26 +174,21 @@ function MyRequestsPage() {
 
   return (
     <article className="page-container">
-      {/* Back Button */}
       <button className="back-btn" onClick={() => navigate('/resident/dashboard')}>
         ← Back to Dashboard
       </button>
 
       <header>
         <h1>My Service Requests</h1>
-        <p className="page-subtitle" role="doc-subtitle">
-          Track and manage your reported municipal issues
-        </p>
+        <p className="page-subtitle">Track and manage your reported municipal issues</p>
       </header>
 
-      {/* Filter Navigation */}
       <nav className="filter-tabs" aria-label="Filter service requests">
         <ul role="tablist">
           <li role="presentation">
             <button
               role="tab"
               aria-selected={activeFilter === 'all'}
-              aria-controls="requests-panel"
               className={`filter-tab ${activeFilter === 'all' ? 'active' : ''}`}
               onClick={() => setActiveFilter('all')}
             >
@@ -145,7 +199,6 @@ function MyRequestsPage() {
             <button
               role="tab"
               aria-selected={activeFilter === 'open'}
-              aria-controls="requests-panel"
               className={`filter-tab ${activeFilter === 'open' ? 'active' : ''}`}
               onClick={() => setActiveFilter('open')}
             >
@@ -156,7 +209,6 @@ function MyRequestsPage() {
             <button
               role="tab"
               aria-selected={activeFilter === 'resolved'}
-              aria-controls="requests-panel"
               className={`filter-tab ${activeFilter === 'resolved' ? 'active' : ''}`}
               onClick={() => setActiveFilter('resolved')}
             >
@@ -166,16 +218,11 @@ function MyRequestsPage() {
         </ul>
       </nav>
 
-      {/* Requests List */}
-      <section
-        id="requests-panel"
-        role="tabpanel"
-        aria-label={`${activeFilter} service requests`}
-      >
+      <section id="requests-panel" role="tabpanel" aria-label={`${activeFilter} service requests`}>
         {loading ? (
-          <p style={{ color: '#888', padding: '2rem 0', textAlign: 'center' }}>Loading your requests...</p>
+          <p className="loading-text">Loading your requests...</p>
         ) : filteredRequests.length > 0 ? (
-          <ul className="requests-list" aria-label="Your service requests">
+          <ul className="requests-list">
             {filteredRequests.map((request) => (
               <li key={request.id}>
                 <article className="request-card">
@@ -191,6 +238,12 @@ function MyRequestsPage() {
                         }
                   </address>
 
+                  {request.assigned_worker_name && (
+                    <div className="request-assigned">
+                      👤 Assigned to: <strong>{request.assigned_worker_name}</strong>
+                    </div>
+                  )}
+
                   <footer className="request-footer">
                     <time dateTime={request.created_at} className="request-date">
                       📅 Reported {timeAgo(request.created_at)}
@@ -199,7 +252,6 @@ function MyRequestsPage() {
                       <button
                         className="view-details-btn"
                         onClick={() => navigate(`/requests/${request.id}`)}
-                        aria-label={`View details for ${request.category} at ${request.location}`}
                       >
                         View Details →
                       </button>
@@ -208,7 +260,6 @@ function MyRequestsPage() {
                         <button
                           className="feedback-btn"
                           onClick={() => openFeedback(request.id)}
-                          aria-label={`Leave feedback for ${request.category}`}
                         >
                           ⭐ Rate Service
                         </button>
@@ -227,7 +278,7 @@ function MyRequestsPage() {
                         {request.category} at {request.location}
                       </p>
 
-                      <div className="star-rating" role="radiogroup" aria-label="Rate your experience">
+                      <div className="star-rating" role="radiogroup">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
                             key={star}
@@ -252,9 +303,7 @@ function MyRequestsPage() {
                         />
                       </div>
 
-                      {feedbackError && (
-                        <p className="feedback-error" role="alert">{feedbackError}</p>
-                      )}
+                      {feedbackError && <p className="feedback-error" role="alert">{feedbackError}</p>}
 
                       <div className="feedback-actions">
                         <button
@@ -279,19 +328,19 @@ function MyRequestsPage() {
             ))}
           </ul>
         ) : (
-          <div className="no-requests" role="status" aria-live="polite">
+          <div className="no-requests" role="status">
             <p>No requests found.</p>
           </div>
         )}
       </section>
 
       {feedbackSuccess && (
-        <div className="feedback-toast" role="status" aria-live="polite">
+        <div className="feedback-toast" role="status">
           ✅ Thank you for your feedback!
         </div>
       )}
 
-      <aside className="help-section" aria-label="Help and information">
+      <aside className="help-section">
         <h3>Need Help?</h3>
         <p>If your issue hasn't been addressed, you can:</p>
         <ul>
