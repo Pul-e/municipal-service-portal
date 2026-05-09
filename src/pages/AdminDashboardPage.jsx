@@ -11,89 +11,97 @@ function AdminDashboardPage() {
   const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        setUser(user);
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      setUser(user);
 
-        // 2. Fetch all service requests
-        const { data: requestsData, error: reqError } = await supabase
-          .from('service_requests')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (reqError) throw reqError;
+      // 1. Fetch all service requests
+      const { data: requestsData, error: reqError } = await supabase
+        .from('service_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (reqError) throw reqError;
 
-        // 3. Fetch staff list (for dropdown and names)
-        const { data: staffData, error: staffError } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, role')
-          .in('role', ['staff', 'worker']);
-        if (staffError) throw staffError;
-        setStaffList(staffData || []);
+      // 2. Fetch staff list (for dropdown and names)
+      const { data: staffData, error: staffError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .in('role', ['staff', 'worker']);
+      if (staffError) throw staffError;
+      setStaffList(staffData || []);
 
-        // 4. Fetch active assignments (unassigned_at IS NULL) – without join
-        const { data: assignments, error: assignError } = await supabase
-            .from('service_request_assignments')
-            .select('request_id, staff_id')
-            .is('unassigned_at', null);
-        if (assignError) throw assignError;
-
-        // 5. Build a map from staff_id → full_name using the already loaded staffList
-        const staffNameMap = new Map();
-        staffList.forEach(staff => {
-            staffNameMap.set(staff.id, staff.full_name || staff.email || 'Unknown');
+      // 3. Build a map from staff_id → full_name
+      const staffNameMap = new Map();
+      if (staffData) {
+        staffData.forEach(staff => {
+          staffNameMap.set(staff.id, staff.full_name || staff.email || 'Unknown');
         });
-
-        // 6. Create a map: request_id → { staff_id, staff_name }
-        const assignmentMap = new Map();
-        assignments?.forEach(assign => {
-            assignmentMap.set(assign.request_id, {
-                staff_id: assign.staff_id,
-                staff_name: staffNameMap.get(assign.staff_id) || 'Unknown'
-            });
-        });
-
-        // 7. Merge assignment info into requests
-        const mergedRequests = requestsData.map(req => ({
-          ...req,
-          assigned: assignmentMap.has(req.id),
-          assigned_staff_id: assignmentMap.get(req.id)?.staff_id,
-          assigned_staff_name: assignmentMap.get(req.id)?.staff_name
-        }));
-
-        setRequests(mergedRequests);
-
-
-      } catch (err) {
-        console.error(err);
-        setError(`Error: ${err.message || 'Failed to load admin dashboard.'}`);
-      } finally {
-        setLoading(false);
       }
-    };
-    load();
-  }, []);
+
+      // 4. Fetch ALL assignments (no join) – ordered by assigned_at desc to get most recent per request
+      const { data: allAssignments, error: assignError } = await supabase
+        .from('service_request_assignments')
+        .select('request_id, staff_id, assigned_at')
+        .order('assigned_at', { ascending: false });
+      if (assignError) throw assignError;
+
+      // 5. Build a map request_id → most recent assignment { staff_id, staff_name }
+      const assignmentMap = new Map();
+      allAssignments?.forEach(assign => {
+        if (!assignmentMap.has(assign.request_id)) {
+          const staffName = staffNameMap.get(assign.staff_id) || 'Unknown';
+          assignmentMap.set(assign.request_id, {
+            staff_id: assign.staff_id,
+            staff_name: staffName
+          });
+        }
+      });
+
+      // 6. Merge into requests
+      const mergedRequests = requestsData.map(req => {
+        const lastAssign = assignmentMap.get(req.id);
+        return {
+          ...req,
+          assigned: !!lastAssign,               // true if ever assigned (any record)
+          assigned_staff_id: lastAssign?.staff_id,
+          assigned_staff_name: lastAssign?.staff_name
+        };
+      });
+
+      setRequests(mergedRequests);
+
+    } catch (err) {
+      console.error(err);
+      setError(`Error: ${err.message || 'Failed to load admin dashboard.'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  load();
+}, []);
+
   const handleAssign = async (requestId, staffId) => {
     try {
-        if (!staffId) return;
-        // Insert into assignments table
-        const { error: assignError } = await supabase
-            .from('service_request_assignments')
-            .insert({
-                request_id: requestId,
-                staff_id: staffId,
-                assigned_by: user?.id,
-            });
-        if (assignError) throw assignError;
+      if (!staffId) return;
+      // Insert into assignments table
+      const { error: assignError } = await supabase
+        .from('service_request_assignments')
+        .insert({
+          request_id: requestId,
+          staff_id: staffId,
+          assigned_by: user?.id,
+        });
+      if (assignError) throw assignError;
 
       // Get the staff name from current staffList
       const assignedStaff = staffList.find(s => s.id === staffId);
       const staffName = assignedStaff?.full_name || assignedStaff?.email || 'Worker';
 
-      // Update local state
+      // Update local state (optimistic)
       setRequests((prev) =>
         prev.map((req) =>
           req.id === requestId
@@ -149,7 +157,6 @@ function AdminDashboardPage() {
           Admin <strong style={{ fontWeight: 600 }}>Dashboard</strong>
         </h1>
 
-        {/* Filter tabs inside dark header */}
         <div style={{ display: 'flex', gap: 0, marginTop: '1.5rem' }}>
           {['all', 'open', 'resolved'].map(f => (
             <button
@@ -206,7 +213,7 @@ function AdminDashboardPage() {
           borderRadius: 'var(--radius-lg)',
           overflow: 'hidden',
         }}>
-          {/* Table header row */}
+          {/* Table header */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: '2fr 3fr 1fr 1fr',
@@ -254,10 +261,15 @@ function AdminDashboardPage() {
                   </span>
                 </div>
                 <div>
-                  {!req.assigned &&
-                   req.status !== 'Resolved' &&
-                   req.status !== 'In Progress' &&
-                   req.status !== 'Acknowledged' ? (
+                  {req.assigned_staff_name ? (
+                    // Always show the worker name if we have it (from any assignment)
+                    <span style={{ fontSize: '0.75rem', color: 'var(--mc-success)', fontFamily: 'var(--mono)' }}>
+                      {req.assigned_staff_name}
+                    </span>
+                  ) : (!req.assigned &&
+                       req.status !== 'Resolved' &&
+                       req.status !== 'In Progress' &&
+                       req.status !== 'Acknowledged') ? (
                     <select
                       defaultValue=""
                       onChange={(e) => handleAssign(req.id, e.target.value)}
@@ -281,12 +293,8 @@ function AdminDashboardPage() {
                       ))}
                     </select>
                   ) : (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--mc-success)', fontFamily: 'var(--mono)' }}>
-                      {req.assigned_staff_name ||
-                        (req.status === 'Resolved' ? '✓ Resolved' :
-                         req.status === 'In Progress' ? '⟳ In Progress' :
-                         req.status === 'Acknowledged' ? '📋 Acknowledged' :
-                         req.assigned ? 'Assigned' : '—')}
+                    <span style={{ fontSize: '0.75rem', color: 'var(--mc-muted)', fontFamily: 'var(--mono)' }}>
+                      —
                     </span>
                   )}
                 </div>
