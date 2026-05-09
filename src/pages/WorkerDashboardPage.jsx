@@ -327,7 +327,7 @@ function WorkerDashboardPage() {
             </section>
 
             <section className="dashboard-section">
-                <h2>📋 Acknowledged (Unassigned)</h2>
+                <h2>📋 Acknowledged</h2>
                 {ackUnassigned.length === 0 ? (
                     <p className="empty-state">No acknowledged unassigned requests.</p>
                 ) : (
@@ -357,7 +357,7 @@ function WorkerDashboardPage() {
             </section>
 
             <section className="dashboard-section">
-                <h2>🛠 In Progress (Unassigned)</h2>
+                <h2>🛠 In Progress</h2>
                 {progUnassigned.length === 0 ? (
                     <p className="empty-state">No in‑progress unassigned requests.</p>
                 ) : (
