@@ -21,7 +21,7 @@ function AdminDashboardPage() {
 
         const [reqRes, staffRes] = await Promise.all([
           supabase.from('service_requests').select('*').order('created_at', { ascending: false }),
-          supabase.from('profiles').select('id, full_name, role').eq('role', 'staff'),
+          supabase.from('profiles').select('id, full_name, role').in('role', ['staff', 'worker']),
         ]);
 
         if (reqRes.error) throw reqRes.error;
@@ -31,7 +31,7 @@ function AdminDashboardPage() {
         setStaffList(staffRes.data || []);
       } catch (err) {
         console.error(err);
-        setError('Failed to load admin dashboard.');
+        setError(`Error: ${err.message || 'Failed to load admin dashboard.'}`);
       } finally {
         setLoading(false);
       }
@@ -41,21 +41,35 @@ function AdminDashboardPage() {
 
   const handleAssign = async (requestId, staffId) => {
     try {
-      if (!staffId) return;
-      const { error } = await supabase.from('service_request_assignments').insert({
-        request_id: requestId,
-        staff_id: staffId,
-        assigned_by: user?.id,
-      });
-      if (error) throw error;
-      setRequests((prev) =>
-        prev.map((req) => req.id === requestId ? { ...req, assigned: true } : req)
-      );
+        if (!staffId) return;
+        // Insert into assignments table
+        const { error: assignError } = await supabase
+            .from('service_request_assignments')
+            .insert({
+                request_id: requestId,
+                staff_id: staffId,
+                assigned_by: user?.id,
+            });
+        if (assignError) throw assignError;
+
+        // Update the service_request to mark it as assigned
+        const { error: updateError } = await supabase
+            .from('service_requests')
+            .update({ assigned: true, status: 'Assigned' })
+            .eq('id', requestId);
+        if (updateError) throw updateError;
+
+        // Update local state
+        setRequests((prev) =>
+            prev.map((req) =>
+                req.id === requestId ? { ...req, assigned: true, status: 'Assigned' } : req
+            )
+        );
     } catch (err) {
-      console.error(err);
-      setError('Failed to assign request.');
+        console.error(err);
+        setError('Failed to assign request.');
     }
-  };
+};
 
   const resolvedCount = requests.filter(r => r.status === 'Resolved').length;
 
@@ -216,7 +230,7 @@ function AdminDashboardPage() {
                     >
                       <option value="" disabled>Assign to staff...</option>
                       {staffList.map((s) => (
-                        <option key={s.id} value={s.id}>{s.full_name}</option>
+                        <option key={s.id} value={s.id}>{s.full_name || s.email || 'Unnamed Worker'}</option>
                       ))}
                     </select>
                   ) : (
