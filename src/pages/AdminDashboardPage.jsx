@@ -11,45 +11,109 @@ function AdminDashboardPage() {
   const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        setUser(user);
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      setUser(user);
 
-        const [reqRes, staffRes] = await Promise.all([
-          supabase.from('service_requests').select('*').order('created_at', { ascending: false }),
-          supabase.from('profiles').select('id, full_name, role').eq('role', 'staff'),
-        ]);
+      // 1. Fetch all service requests
+      const { data: requestsData, error: reqError } = await supabase
+        .from('service_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (reqError) throw reqError;
 
-        if (reqRes.error) throw reqRes.error;
-        if (staffRes.error) throw staffRes.error;
+      // 2. Fetch staff list (for dropdown and names)
+      const { data: staffData, error: staffError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .in('role', ['staff', 'worker']);
+      if (staffError) throw staffError;
+      setStaffList(staffData || []);
 
-        setRequests(reqRes.data || []);
-        setStaffList(staffRes.data || []);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load admin dashboard.');
-      } finally {
-        setLoading(false);
+      // 3. Build a map from staff_id → full_name
+      const staffNameMap = new Map();
+      if (staffData) {
+        staffData.forEach(staff => {
+          staffNameMap.set(staff.id, staff.full_name || staff.email || 'Unknown');
+        });
       }
-    };
-    load();
-  }, []);
+
+      // 4. Fetch ALL assignments (no join) – ordered by assigned_at desc to get most recent per request
+      const { data: allAssignments, error: assignError } = await supabase
+        .from('service_request_assignments')
+        .select('request_id, staff_id, assigned_at')
+        .order('assigned_at', { ascending: false });
+      if (assignError) throw assignError;
+
+      // 5. Build a map request_id → most recent assignment { staff_id, staff_name }
+      const assignmentMap = new Map();
+      allAssignments?.forEach(assign => {
+        if (!assignmentMap.has(assign.request_id)) {
+          const staffName = staffNameMap.get(assign.staff_id) || 'Unknown';
+          assignmentMap.set(assign.request_id, {
+            staff_id: assign.staff_id,
+            staff_name: staffName
+          });
+        }
+      });
+
+      // 6. Merge into requests
+      const mergedRequests = requestsData.map(req => {
+        const lastAssign = assignmentMap.get(req.id);
+        return {
+          ...req,
+          assigned: !!lastAssign,               // true if ever assigned (any record)
+          assigned_staff_id: lastAssign?.staff_id,
+          assigned_staff_name: lastAssign?.staff_name
+        };
+      });
+
+      setRequests(mergedRequests);
+
+    } catch (err) {
+      console.error(err);
+      setError(`Error: ${err.message || 'Failed to load admin dashboard.'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  load();
+}, []);
 
   const handleAssign = async (requestId, staffId) => {
     try {
       if (!staffId) return;
-      const { error } = await supabase.from('service_request_assignments').insert({
-        request_id: requestId,
-        staff_id: staffId,
-        assigned_by: user?.id,
-      });
-      if (error) throw error;
+      // Insert into assignments table
+      const { error: assignError } = await supabase
+        .from('service_request_assignments')
+        .insert({
+          request_id: requestId,
+          staff_id: staffId,
+          assigned_by: user?.id,
+        });
+      if (assignError) throw assignError;
+
+      // Get the staff name from current staffList
+      const assignedStaff = staffList.find(s => s.id === staffId);
+      const staffName = assignedStaff?.full_name || assignedStaff?.email || 'Worker';
+
+      // Update local state (optimistic)
       setRequests((prev) =>
-        prev.map((req) => req.id === requestId ? { ...req, assigned: true } : req)
+        prev.map((req) =>
+          req.id === requestId
+            ? {
+                ...req,
+                assigned: true,
+                assigned_staff_id: staffId,
+                assigned_staff_name: staffName,
+                status: 'Assigned'
+              }
+            : req
+        )
       );
     } catch (err) {
       console.error(err);
@@ -93,7 +157,6 @@ function AdminDashboardPage() {
           Admin <strong style={{ fontWeight: 600 }}>Dashboard</strong>
         </h1>
 
-        {/* Filter tabs inside dark header */}
         <div style={{ display: 'flex', gap: 0, marginTop: '1.5rem' }}>
           {['all', 'open', 'resolved'].map(f => (
             <button
@@ -150,7 +213,7 @@ function AdminDashboardPage() {
           borderRadius: 'var(--radius-lg)',
           overflow: 'hidden',
         }}>
-          {/* Table header row */}
+          {/* Table header */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: '2fr 3fr 1fr 1fr',
@@ -198,7 +261,15 @@ function AdminDashboardPage() {
                   </span>
                 </div>
                 <div>
-                  {!req.assigned ? (
+                  {req.assigned_staff_name ? (
+                    // Always show the worker name if we have it (from any assignment)
+                    <span style={{ fontSize: '0.75rem', color: 'var(--mc-success)', fontFamily: 'var(--mono)' }}>
+                      {req.assigned_staff_name}
+                    </span>
+                  ) : (!req.assigned &&
+                       req.status !== 'Resolved' &&
+                       req.status !== 'In Progress' &&
+                       req.status !== 'Acknowledged') ? (
                     <select
                       defaultValue=""
                       onChange={(e) => handleAssign(req.id, e.target.value)}
@@ -216,12 +287,14 @@ function AdminDashboardPage() {
                     >
                       <option value="" disabled>Assign to staff...</option>
                       {staffList.map((s) => (
-                        <option key={s.id} value={s.id}>{s.full_name}</option>
+                        <option key={s.id} value={s.id}>
+                          {s.full_name || s.email || 'Unnamed Worker'}
+                        </option>
                       ))}
                     </select>
                   ) : (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--mc-success)', fontFamily: 'var(--mono)' }}>
-                      Assigned ✓
+                    <span style={{ fontSize: '0.75rem', color: 'var(--mc-muted)', fontFamily: 'var(--mono)' }}>
+                      —
                     </span>
                   )}
                 </div>
