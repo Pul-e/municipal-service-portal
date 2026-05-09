@@ -10,6 +10,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import ManageUsersPage from './pages/admin/ManageUsersPage';
 import AnalyticsDashboardPage from './pages/AnalyticsDashboardPage';
+import RequestDetailsPage from './pages/RequestDetailsPage';
 
 function App() {
   return (
@@ -35,6 +36,9 @@ function App() {
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="/admin/users" element={<ManageUsersPage />} />
           <Route path="/admin/analytics" element={<AnalyticsDashboardPage />} />
+          
+          {/* Request Details Route - accessible to authenticated users */}
+          <Route path="/requests/:id" element={<RequestDetailsPage />} />
         </Routes>
       </main>
     </div>

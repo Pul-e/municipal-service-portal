@@ -185,6 +185,7 @@ function MyRequestsPage() {
                     <div className="request-actions">
                       <button
                         className="view-details-btn"
+                        onClick={() => navigate(`/requests/${request.id}`)}
                         aria-label={`View details for ${request.category} at ${request.location}`}
                       >
                         View Details →
