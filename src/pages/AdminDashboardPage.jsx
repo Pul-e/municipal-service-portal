@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 function AdminDashboardPage() {
   const [requests, setRequests] = useState([]);
@@ -9,6 +10,7 @@ function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
+  const navigate = useNavigate();
 
   useEffect(() => {
   const load = async () => {
@@ -66,7 +68,7 @@ function AdminDashboardPage() {
         const lastAssign = assignmentMap.get(req.id);
         return {
           ...req,
-          assigned: !!lastAssign,               // true if ever assigned (any record)
+          assigned: !!lastAssign,               
           assigned_staff_id: lastAssign?.staff_id,
           assigned_staff_name: lastAssign?.staff_name
         };
@@ -216,12 +218,12 @@ function AdminDashboardPage() {
           {/* Table header */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '2fr 3fr 1fr 1fr',
+            gridTemplateColumns: '2fr 3fr 1fr 1fr 0.7fr', 
             padding: '10px 18px',
             borderBottom: '1px solid var(--mc-border)',
             background: 'rgba(0,0,0,0.015)',
           }}>
-            {['Issue Type', 'Location', 'Status', 'Assign'].map(h => (
+            {['Issue Type', 'Location', 'Status', 'Assign', 'Actions'].map(h => (
               <span key={h} style={{ fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--mc-muted)' }}>
                 {h}
               </span>
@@ -297,6 +299,24 @@ function AdminDashboardPage() {
                       —
                     </span>
                   )}
+                </div>
+
+                  {/* New Actions column */}
+                <div>
+                  <button
+                    onClick={() => navigate(`/requests/${req.id}`)}
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '4px 8px',
+                      background: 'var(--mc-primary)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    View Details
+                  </button>
                 </div>
               </div>
             ))

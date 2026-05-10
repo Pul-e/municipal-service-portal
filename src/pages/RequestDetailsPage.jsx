@@ -93,8 +93,8 @@ function RequestDetailsPage() {
       <div className="page-container" style={{ textAlign: 'center', padding: '3rem' }}>
         <h2>Error</h2>
         <p>{error || 'Request not found'}</p>
-        <button className="back-btn" onClick={() => navigate('/my-requests')}>
-          ← Back to My Requests
+        <button className="back-btn" onClick={() => navigate(-1)}>
+          ← Back
         </button>
       </div>
     );
