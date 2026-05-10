@@ -102,8 +102,8 @@ function RequestDetailsPage() {
 
   return (
     <article className="page-container">
-      <button className="back-btn" onClick={() => navigate('/my-requests')}>
-        ← Back to My Requests
+      <button className="back-btn" onClick={() => navigate(-1)}>
+        ← Back
       </button>
 
       <header>

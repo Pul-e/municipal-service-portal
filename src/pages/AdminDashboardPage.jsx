@@ -1,95 +1,93 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';  
 import { supabase } from '../supabaseClient';
-import { useNavigate } from 'react-router-dom';
 
 function AdminDashboardPage() {
+  const navigate = useNavigate();  // added
   const [requests, setRequests] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
-  const navigate = useNavigate();
 
   useEffect(() => {
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      setUser(user);
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        setUser(user);
 
-      // 1. Fetch all service requests
-      const { data: requestsData, error: reqError } = await supabase
-        .from('service_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (reqError) throw reqError;
+        // 1. Fetch all service requests
+        const { data: requestsData, error: reqError } = await supabase
+          .from('service_requests')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (reqError) throw reqError;
 
-      // 2. Fetch staff list (for dropdown and names)
-      const { data: staffData, error: staffError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, role')
-        .in('role', ['staff', 'worker']);
-      if (staffError) throw staffError;
-      setStaffList(staffData || []);
+        // 2. Fetch staff list (for dropdown and names)
+        const { data: staffData, error: staffError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, role')
+          .in('role', ['staff', 'worker']);
+        if (staffError) throw staffError;
+        setStaffList(staffData || []);
 
-      // 3. Build a map from staff_id → full_name
-      const staffNameMap = new Map();
-      if (staffData) {
-        staffData.forEach(staff => {
-          staffNameMap.set(staff.id, staff.full_name || staff.email || 'Unknown');
-        });
-      }
-
-      // 4. Fetch ALL assignments (no join) – ordered by assigned_at desc to get most recent per request
-      const { data: allAssignments, error: assignError } = await supabase
-        .from('service_request_assignments')
-        .select('request_id, staff_id, assigned_at')
-        .order('assigned_at', { ascending: false });
-      if (assignError) throw assignError;
-
-      // 5. Build a map request_id → most recent assignment { staff_id, staff_name }
-      const assignmentMap = new Map();
-      allAssignments?.forEach(assign => {
-        if (!assignmentMap.has(assign.request_id)) {
-          const staffName = staffNameMap.get(assign.staff_id) || 'Unknown';
-          assignmentMap.set(assign.request_id, {
-            staff_id: assign.staff_id,
-            staff_name: staffName
+        // 3. Build a map from staff_id → full_name
+        const staffNameMap = new Map();
+        if (staffData) {
+          staffData.forEach(staff => {
+            staffNameMap.set(staff.id, staff.full_name || staff.email || 'Unknown');
           });
         }
-      });
 
-      // 6. Merge into requests
-      const mergedRequests = requestsData.map(req => {
-        const lastAssign = assignmentMap.get(req.id);
-        return {
-          ...req,
-          assigned: !!lastAssign,               
-          assigned_staff_id: lastAssign?.staff_id,
-          assigned_staff_name: lastAssign?.staff_name
-        };
-      });
+        // 4. Fetch ALL assignments (no join) – ordered by assigned_at desc to get most recent per request
+        const { data: allAssignments, error: assignError } = await supabase
+          .from('service_request_assignments')
+          .select('request_id, staff_id, assigned_at')
+          .order('assigned_at', { ascending: false });
+        if (assignError) throw assignError;
 
-      setRequests(mergedRequests);
+        // 5. Build a map request_id → most recent assignment { staff_id, staff_name }
+        const assignmentMap = new Map();
+        allAssignments?.forEach(assign => {
+          if (!assignmentMap.has(assign.request_id)) {
+            const staffName = staffNameMap.get(assign.staff_id) || 'Unknown';
+            assignmentMap.set(assign.request_id, {
+              staff_id: assign.staff_id,
+              staff_name: staffName
+            });
+          }
+        });
 
-    } catch (err) {
-      console.error(err);
-      setError(`Error: ${err.message || 'Failed to load admin dashboard.'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-  load();
-}, []);
+        // 6. Merge into requests
+        const mergedRequests = requestsData.map(req => {
+          const lastAssign = assignmentMap.get(req.id);
+          return {
+            ...req,
+            assigned: !!lastAssign,
+            assigned_staff_id: lastAssign?.staff_id,
+            assigned_staff_name: lastAssign?.staff_name
+          };
+        });
+
+        setRequests(mergedRequests);
+
+      } catch (err) {
+        console.error(err);
+        setError(`Error: ${err.message || 'Failed to load admin dashboard.'}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const handleAssign = async (requestId, staffId) => {
     try {
       if (!staffId) return;
-      // Insert into assignments table
       const { error: assignError } = await supabase
         .from('service_request_assignments')
         .insert({
@@ -99,11 +97,9 @@ function AdminDashboardPage() {
         });
       if (assignError) throw assignError;
 
-      // Get the staff name from current staffList
       const assignedStaff = staffList.find(s => s.id === staffId);
       const staffName = assignedStaff?.full_name || assignedStaff?.email || 'Worker';
 
-      // Update local state (optimistic)
       setRequests((prev) =>
         prev.map((req) =>
           req.id === requestId
@@ -215,15 +211,15 @@ function AdminDashboardPage() {
           borderRadius: 'var(--radius-lg)',
           overflow: 'hidden',
         }}>
-          {/* Table header */}
+          {/* Table header with 5 columns */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '2fr 3fr 1fr 1fr 0.7fr', 
+            gridTemplateColumns: '2fr 3fr 1fr 1fr 0.7fr',
             padding: '10px 18px',
             borderBottom: '1px solid var(--mc-border)',
             background: 'rgba(0,0,0,0.015)',
           }}>
-            {['Issue Type', 'Location', 'Status', 'Assign', 'Actions'].map(h => (
+            {['Issue Type', 'Location', 'Status', 'Assign / Worker', 'Actions'].map(h => (
               <span key={h} style={{ fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--mc-muted)' }}>
                 {h}
               </span>
@@ -240,7 +236,7 @@ function AdminDashboardPage() {
                 key={req.id}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '2fr 3fr 1fr 1fr',
+                  gridTemplateColumns: '2fr 3fr 1fr 1fr 0.7fr',
                   padding: '13px 18px',
                   borderBottom: '1px solid var(--mc-border)',
                   alignItems: 'center',
@@ -249,22 +245,25 @@ function AdminDashboardPage() {
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(82,183,136,0.03)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
+                {/* Issue Type */}
                 <div>
                   <div style={{ fontSize: '0.875rem', fontWeight: 500, textTransform: 'capitalize', color: 'var(--mc-text)' }}>
                     {req.category}
                   </div>
                 </div>
+                {/* Location */}
                 <div style={{ fontSize: '0.78rem', color: 'var(--mc-muted)', fontFamily: 'var(--mono)' }}>
                   {req.location}
                 </div>
+                {/* Status */}
                 <div>
                   <span className={`status-badge ${getStatusClass(req.status)}`}>
                     {req.status}
                   </span>
                 </div>
+                {/* Assign / Worker */}
                 <div>
                   {req.assigned_staff_name ? (
-                    // Always show the worker name if we have it (from any assignment)
                     <span style={{ fontSize: '0.75rem', color: 'var(--mc-success)', fontFamily: 'var(--mono)' }}>
                       {req.assigned_staff_name}
                     </span>
@@ -300,15 +299,14 @@ function AdminDashboardPage() {
                     </span>
                   )}
                 </div>
-
-                  {/* New Actions column */}
+                {/* Actions – View Details button */}
                 <div>
                   <button
                     onClick={() => navigate(`/requests/${req.id}`)}
                     style={{
                       fontSize: '0.7rem',
                       padding: '4px 8px',
-                      background: 'var(--mc-primary)',
+                      background: '#1a4d2e',
                       color: 'white',
                       border: 'none',
                       borderRadius: '4px',
