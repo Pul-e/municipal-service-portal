@@ -29,15 +29,19 @@ jobs:
         run: npm ci
 
       - name: Run tests with coverage
-        run: npm run test:coverage -- --watchAll=false
+        run: npm run test:coverage
 
-      - name: Check coverage report exists
+      - name: Verify coverage files
         run: |
-          if [ ! -f coverage/coverage-summary.json ]; then
-            echo "Coverage report not generated"
+          echo "Coverage directory contents:"
+          ls -R coverage
+
+          if [ ! -f coverage/lcov.info ]; then
+            echo "lcov.info not found"
             exit 1
           fi
-          echo "Coverage report generated successfully"
+
+          echo "Coverage reports generated successfully"
 
       - name: Upload coverage artifact
         if: always()
@@ -51,8 +55,9 @@ jobs:
         if: always()
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
-          flags: unittests
+          flags: frontend
           name: municipal-service-portal
           fail_ci_if_error: false
           verbose: true
@@ -65,14 +70,17 @@ jobs:
             const fs = require('fs');
 
             if (!fs.existsSync('./coverage/coverage-summary.json')) {
-              core.warning('coverage-summary.json not found, skipping coverage comment');
+              core.warning('coverage-summary.json not found');
               return;
             }
 
-            const coverage = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json', 'utf8'));
+            const coverage = JSON.parse(
+              fs.readFileSync('./coverage/coverage-summary.json', 'utf8')
+            );
+
             const total = coverage.total;
 
-            const comment = `## Test Coverage Report
+            const comment = `## 📊 Test Coverage Report
 
             | Metric | Coverage |
             |--------|----------|
@@ -81,7 +89,7 @@ jobs:
             | Functions | ${total.functions.pct}% |
             | Branches | ${total.branches.pct}% |
 
-            Sprint 2 target: 25% minimum, 50% excellent.
+            ✅ Sprint 3 Coverage Generated Successfully
             `;
 
             github.rest.issues.createComment({
