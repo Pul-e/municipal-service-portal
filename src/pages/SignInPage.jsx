@@ -150,7 +150,7 @@ function SignInPage() {
           </button>
 
           <div className="signin-footer">
-            <p>Don't have an account? <Link to="/register">Register here</Link></p>
+            
             <p><Link to="/">← Back to public dashboard</Link></p>
           </div>
 
