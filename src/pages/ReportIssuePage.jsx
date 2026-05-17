@@ -189,7 +189,7 @@ function ReportIssuePage() {
       setError('Failed to submit report: ' + insertError.message);
     } else {
       alert('Report submitted successfully!');
-      navigate('/my-requests');
+      navigate('/resident/dashboard');
     }
   };
 
