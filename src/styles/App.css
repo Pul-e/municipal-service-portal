@@ -1985,3 +1985,101 @@ textarea:focus-visible {
 .worker-btn:hover { background: var(--mc-info); color: #fff; }
 .admin-btn    { background: rgba(138,68,173,0.1); color: #7c3aed; border: 1px solid rgba(124,58,237,0.25); }
 .admin-btn:hover { background: #7c3aed; color: #fff; }
+
+.resolution-upload-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+
+.resolution-upload-modal {
+    background: var(--mc-surface);
+    border-radius: var(--radius-lg, 12px);
+    padding: 2rem;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    text-align: center;
+}
+
+    .resolution-upload-modal h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--mc-text);
+        margin: 0;
+    }
+
+.upload-subtitle {
+    font-size: 0.85rem;
+    color: var(--mc-muted);
+    margin: 0;
+}
+
+.upload-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    border: 2px dashed var(--mc-border-md);
+    border-radius: var(--radius-md, 8px);
+    padding: 2rem 1.5rem;
+    cursor: pointer;
+    width: 100%;
+    transition: border-color 0.15s, background 0.15s;
+    color: var(--mc-muted);
+    font-size: 0.875rem;
+}
+
+    .upload-dropzone:hover {
+        border-color: var(--mc-mid);
+        background: var(--mc-bg);
+    }
+
+.upload-icon {
+    font-size: 2rem;
+}
+
+.upload-hint {
+    font-size: 0.75rem;
+    color: var(--mc-muted);
+    opacity: 0.7;
+}
+
+.upload-preview {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--mc-border);
+}
+
+    .upload-preview.uploaded {
+        border-color: var(--mc-success);
+    }
+
+.upload-error {
+    font-size: 0.82rem;
+    color: var(--mc-danger);
+    margin: 0;
+}
+
+.upload-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.upload-success-icon {
+    font-size: 2.5rem;
+}

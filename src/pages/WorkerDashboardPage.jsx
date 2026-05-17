@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import StatusBadge from '../components/StatusBadge';
@@ -12,6 +12,12 @@ function WorkerDashboardPage() {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // ── NEW: Image upload state ────────────────────────────────────────────
+    // Shape: { requestId, file, previewUrl, uploading, uploadError, uploaded }
+    const [imageUpload, setImageUpload] = useState(null);
+    const fileInputRef = useRef(null);
+    // ──────────────────────────────────────────────────────────────────────
 
     useEffect(() => {
         loadDashboard();
@@ -88,7 +94,6 @@ function WorkerDashboardPage() {
 
         const merged = (requestsData || []).map(req => {
             const assignment = assignments.find(a => a.request_id === req.id);
-
             return {
                 ...req,
                 assignment_id: assignment?.request_id,
@@ -207,6 +212,17 @@ function WorkerDashboardPage() {
                     .is('unassigned_at', null);
 
                 if (unassignError) throw unassignError;
+
+                // ── NEW: Open the image upload modal after resolving ──────
+                setImageUpload({
+                    requestId,
+                    file: null,
+                    previewUrl: null,
+                    uploading: false,
+                    uploadError: null,
+                    uploaded: false
+                });
+                // ────────────────────────────────────────────────────────
             }
 
             if (newStatus === 'Acknowledged' || newStatus === 'In Progress') {
@@ -275,6 +291,78 @@ function WorkerDashboardPage() {
         }
     };
 
+    // ── NEW: Image upload handlers ─────────────────────────────────────────
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            setImageUpload(prev => ({ ...prev, uploadError: 'Please select an image file.' }));
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            setImageUpload(prev => ({ ...prev, uploadError: 'Image must be under 10 MB.' }));
+            return;
+        }
+
+        const previewUrl = URL.createObjectURL(file);
+        setImageUpload(prev => ({ ...prev, file, previewUrl, uploadError: null }));
+    };
+
+    const handleImageUpload = async () => {
+        if (!imageUpload?.file || !imageUpload?.requestId) return;
+
+        setImageUpload(prev => ({ ...prev, uploading: true, uploadError: null }));
+
+        try {
+            const { file, requestId } = imageUpload;
+            const ext = file.name.split('.').pop();
+            const filePath = `resolution-images/${requestId}-${Date.now()}.${ext}`;
+
+            // 1. Upload file to Supabase Storage bucket "request-images"
+            const { error: storageError } = await supabase.storage
+                .from('request-images')
+                .upload(filePath, file, { upsert: true });
+
+            if (storageError) throw storageError;
+
+            // 2. Get the public URL
+            const { data: urlData } = supabase.storage
+                .from('request-images')
+                .getPublicUrl(filePath);
+
+            const publicUrl = urlData?.publicUrl;
+            if (!publicUrl) throw new Error('Could not get public URL for uploaded image.');
+
+            // 3. Save URL to the assignment row (matched by request + worker)
+            const { error: dbError } = await supabase
+                .from('service_request_assignments')
+                .update({ image_url: publicUrl })
+                .eq('request_id', requestId)
+                .eq('staff_id', user.id);
+
+            if (dbError) throw dbError;
+
+            setImageUpload(prev => ({ ...prev, uploading: false, uploaded: true }));
+        } catch (err) {
+            console.error('Image upload error:', err);
+            setImageUpload(prev => ({
+                ...prev,
+                uploading: false,
+                uploadError: err.message || 'Upload failed. Please try again.'
+            }));
+        }
+    };
+
+    const handleDismissUpload = () => {
+        if (imageUpload?.previewUrl) URL.revokeObjectURL(imageUpload.previewUrl);
+        setImageUpload(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    // ── Render ─────────────────────────────────────────────────────────────
+
     if (loading) {
         return (
             <div className="page-container">
@@ -319,6 +407,101 @@ function WorkerDashboardPage() {
             </header>
 
             {error && <p className="error-message">{error}</p>}
+
+            {/* ── NEW: Resolution image upload modal ────────────────────── */}
+            {imageUpload && (
+                <div className="resolution-upload-overlay">
+                    <div className="resolution-upload-modal">
+                        {imageUpload.uploaded ? (
+                            <>
+                                <div className="upload-success-icon">✅</div>
+                                <h3>Image Uploaded</h3>
+                                <p>The resolution photo has been saved to this request.</p>
+                                {imageUpload.previewUrl && (
+                                    <img
+                                        src={imageUpload.previewUrl}
+                                        alt="Uploaded resolution"
+                                        className="upload-preview uploaded"
+                                    />
+                                )}
+                                <button className="action-btn claim" onClick={handleDismissUpload}>
+                                    Done
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <h3>📸 Add Resolution Photo</h3>
+                                <p className="upload-subtitle">
+                                    Optionally attach a photo showing the resolved issue.
+                                </p>
+
+                                {imageUpload.previewUrl ? (
+                                    <img
+                                        src={imageUpload.previewUrl}
+                                        alt="Preview"
+                                        className="upload-preview"
+                                    />
+                                ) : (
+                                    <label className="upload-dropzone" htmlFor="resolution-file-input">
+                                        <span className="upload-icon">🖼️</span>
+                                        <span>Click to choose a photo</span>
+                                        <span className="upload-hint">JPG, PNG, WEBP · Max 10 MB</span>
+                                    </label>
+                                )}
+
+                                <input
+                                    id="resolution-file-input"
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    onChange={handleFileSelect}
+                                />
+
+                                {imageUpload.uploadError && (
+                                    <p className="upload-error">{imageUpload.uploadError}</p>
+                                )}
+
+                                <div className="upload-actions">
+                                    {imageUpload.file && !imageUpload.uploading && (
+                                        <button
+                                            className="action-btn"
+                                            style={{ background: '#e9ecef', color: '#495057', border: '1px solid #ced4da' }}
+                                            onClick={() => {
+                                                URL.revokeObjectURL(imageUpload.previewUrl);
+                                                setImageUpload(prev => ({ ...prev, file: null, previewUrl: null }));
+                                                if (fileInputRef.current) fileInputRef.current.value = '';
+                                            }}
+                                        >
+                                            Change Photo
+                                        </button>
+                                    )}
+
+                                    {imageUpload.file && (
+                                        <button
+                                            className="action-btn claim"
+                                            onClick={handleImageUpload}
+                                            disabled={imageUpload.uploading}
+                                        >
+                                            {imageUpload.uploading ? 'Uploading…' : 'Upload Photo'}
+                                        </button>
+                                    )}
+
+                                    <button
+                                        className="action-btn"
+                                        style={{ background: 'none', color: '#6c757d', border: '1px solid #dee2e6' }}
+                                        onClick={handleDismissUpload}
+                                        disabled={imageUpload.uploading}
+                                    >
+                                        Skip
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+            {/* ──────────────────────────────────────────────────────────── */}
 
             <section className="worker-stats">
                 <dl className="stats-inline">
@@ -367,7 +550,10 @@ function WorkerDashboardPage() {
                                         )}
 
                                         {req.status === 'In Progress' && (
-                                            <button onClick={() => handleStatusUpdate(req.id, 'Resolved')}>
+                                            <button
+                                                className="action-btn resolve"
+                                                onClick={() => handleStatusUpdate(req.id, 'Resolved')}
+                                            >
                                                 Mark Resolved
                                             </button>
                                         )}
@@ -473,7 +659,10 @@ function WorkerDashboardPage() {
                                     <footer className="worker-actions">
                                         <StatusBadge status={req.status} />
 
-                                        <button onClick={() => handleStatusUpdate(req.id, 'Resolved')}>
+                                        <button
+                                            className="action-btn resolve"
+                                            onClick={() => handleStatusUpdate(req.id, 'Resolved')}
+                                        >
                                             Mark Resolved
                                         </button>
                                     </footer>
