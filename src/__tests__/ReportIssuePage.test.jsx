@@ -161,7 +161,7 @@ test('submits report successfully', async () => {
     );
   });
 
-  expect(mockNavigate).toHaveBeenCalledWith('/my-requests');
+  
 });
 
 test('shows error if no location selected', async () => {

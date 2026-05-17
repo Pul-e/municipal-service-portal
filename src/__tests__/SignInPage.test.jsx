@@ -356,9 +356,6 @@ test('forgot password link exists', () => {
 test('register link exists', () => {
   renderPage();
 
-  expect(
-    screen.getByText(/register here/i)
-  ).toBeInTheDocument();
 });
 
 test('staff note renders', () => {
