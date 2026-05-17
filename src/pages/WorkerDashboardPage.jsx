@@ -336,13 +336,20 @@ function WorkerDashboardPage() {
             if (!publicUrl) throw new Error('Could not get public URL for uploaded image.');
 
             // 3. Save URL to the assignment row (matched by request + worker)
-            const { error: dbError } = await supabase
+            const { error: assignmentError } = await supabase
                 .from('service_request_assignments')
                 .update({ image_url: publicUrl })
                 .eq('request_id', requestId)
                 .eq('staff_id', user.id);
 
-            if (dbError) throw dbError;
+            if (assignmentError) throw assignmentError;
+
+            const { error: requestError } = await supabase
+                .from('service_requests')
+                .update({ resolution_image_url: publicUrl })
+                .eq('id', requestId);
+
+            if (requestError) throw requestError;
 
             setImageUpload(prev => ({ ...prev, uploading: false, uploaded: true }));
         } catch (err) {

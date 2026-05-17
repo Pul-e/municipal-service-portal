@@ -135,6 +135,7 @@ function RequestDetailsPage() {
                         />
                     </div>
                 )}
+                
 
                 {/* Description */}
                 <div className="details-section">
