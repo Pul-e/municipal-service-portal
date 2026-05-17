@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import StatusBadge from '../components/StatusBadge';
@@ -12,6 +12,10 @@ function WorkerDashboardPage() {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Image upload state: { requestId, file, previewUrl, uploading, uploadError, uploaded }
+    const [imageUpload, setImageUpload] = useState(null);
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         loadDashboard();
@@ -199,6 +203,16 @@ function WorkerDashboardPage() {
                     .eq('request_id', requestId)
                     .is('unassigned_at', null);
                 if (unassignError) throw unassignError;
+
+                // Open image upload modal after resolving
+                setImageUpload({
+                    requestId,
+                    file: null,
+                    previewUrl: null,
+                    uploading: false,
+                    uploadError: null,
+                    uploaded: false
+                });
             }
 
             if (newStatus === 'Acknowledged' || newStatus === 'In Progress') {
@@ -267,7 +281,6 @@ function WorkerDashboardPage() {
         }
     };
 
-<<<<<<< HEAD
     // ── NEW: Image upload handlers ─────────────────────────────────────────
 
     const handleFileSelect = (e) => {
@@ -347,8 +360,6 @@ function WorkerDashboardPage() {
 
     // ── Render ─────────────────────────────────────────────────────────────
 
-=======
->>>>>>> f86a3c9aa0697582bd80203195b1085edc2320f7
     if (loading) {
         return (
             <article className="page-container">
@@ -394,7 +405,99 @@ function WorkerDashboardPage() {
 
             {error && <p className="error-message" role="alert">{error}</p>}
 
-            {/* Stats */}
+            {/* Resolution image upload modal */}
+            {imageUpload && (
+                <div className="resolution-upload-overlay">
+                    <div className="resolution-upload-modal">
+                        {imageUpload.uploaded ? (
+                            <>
+                                <div className="upload-success-icon">✅</div>
+                                <h3>Image Uploaded</h3>
+                                <p>The resolution photo has been saved to this request.</p>
+                                {imageUpload.previewUrl && (
+                                    <img
+                                        src={imageUpload.previewUrl}
+                                        alt="Uploaded resolution"
+                                        className="upload-preview uploaded"
+                                    />
+                                )}
+                                <button className="action-btn claim" onClick={handleDismissUpload}>
+                                    Done
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <h3>📸 Add Resolution Photo</h3>
+                                <p className="upload-subtitle">
+                                    Optionally attach a photo showing the resolved issue.
+                                </p>
+
+                                {imageUpload.previewUrl ? (
+                                    <img
+                                        src={imageUpload.previewUrl}
+                                        alt="Preview"
+                                        className="upload-preview"
+                                    />
+                                ) : (
+                                    <label className="upload-dropzone" htmlFor="resolution-file-input">
+                                        <span className="upload-icon">🖼️</span>
+                                        <span>Click to choose a photo</span>
+                                        <span className="upload-hint">JPG, PNG, WEBP · Max 10 MB</span>
+                                    </label>
+                                )}
+
+                                <input
+                                    id="resolution-file-input"
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    onChange={handleFileSelect}
+                                />
+
+                                {imageUpload.uploadError && (
+                                    <p className="upload-error">{imageUpload.uploadError}</p>
+                                )}
+
+                                <div className="upload-actions">
+                                    {imageUpload.file && !imageUpload.uploading && (
+                                        <button
+                                            className="action-btn"
+                                            style={{ background: '#e9ecef', color: '#495057', border: '1px solid #ced4da' }}
+                                            onClick={() => {
+                                                URL.revokeObjectURL(imageUpload.previewUrl);
+                                                setImageUpload(prev => ({ ...prev, file: null, previewUrl: null }));
+                                                if (fileInputRef.current) fileInputRef.current.value = '';
+                                            }}
+                                        >
+                                            Change Photo
+                                        </button>
+                                    )}
+
+                                    {imageUpload.file && (
+                                        <button
+                                            className="action-btn claim"
+                                            onClick={handleImageUpload}
+                                            disabled={imageUpload.uploading}
+                                        >
+                                            {imageUpload.uploading ? 'Uploading…' : 'Upload Photo'}
+                                        </button>
+                                    )}
+
+                                    <button
+                                        className="action-btn"
+                                        style={{ background: 'none', color: '#6c757d', border: '1px solid #dee2e6' }}
+                                        onClick={handleDismissUpload}
+                                        disabled={imageUpload.uploading}
+                                    >
+                                        Skip
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
             <section className="worker-stats" aria-label="Workload summary">
                 <dl className="stats-inline">
                     <div>
