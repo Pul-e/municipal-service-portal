@@ -18,7 +18,6 @@ function RequestDetailsPage() {
       setError(null);
 
       try {
-        // Fetch the request details
         const { data: requestData, error: requestError } = await supabase
           .from('service_requests')
           .select('*')
@@ -30,7 +29,6 @@ function RequestDetailsPage() {
 
         setRequest(requestData);
 
-        // Fetch feedback for this request
         const { data: feedbackData, error: feedbackError } = await supabase
           .from('feedback')
           .select('*')
@@ -41,7 +39,6 @@ function RequestDetailsPage() {
           setFeedback(feedbackData);
         }
 
-        // Fetch assignment info (who is working on it)
         const { data: assignmentData, error: assignmentError } = await supabase
           .from('service_request_assignments')
           .select(`
@@ -82,21 +79,23 @@ function RequestDetailsPage() {
 
   if (loading) {
     return (
-      <div className="page-container" style={{ textAlign: 'center', padding: '3rem' }}>
-        <p>Loading request details...</p>
-      </div>
+      <article className="page-container request-details-loading">
+        <p role="status">Loading request details...</p>
+      </article>
     );
   }
 
   if (error || !request) {
     return (
-      <div className="page-container" style={{ textAlign: 'center', padding: '3rem' }}>
-        <h2>Error</h2>
-        <p>{error || 'Request not found'}</p>
+      <article className="page-container request-details-error">
+        <header>
+          <h2>Error</h2>
+        </header>
+        <p role="alert">{error || 'Request not found'}</p>
         <button className="back-btn" onClick={() => navigate(-1)}>
           ← Back
         </button>
-      </div>
+      </article>
     );
   }
 
@@ -111,169 +110,114 @@ function RequestDetailsPage() {
         <p className="page-subtitle">View full information about your service request</p>
       </header>
 
-      <div className="request-details-card">
+      <section className="request-details-card">
         {/* Header with status */}
-        <div className="details-header">
+        <header className="details-header">
           <h2>{request.category?.replace('-', ' ').toUpperCase()}</h2>
           <StatusBadge status={request.status} />
-        </div>
+        </header>
 
         {/* Image if exists */}
         {request.image_url && (
-          <div className="details-image">
+          <figure className="details-image">
             <img 
               src={request.image_url} 
               alt="Service request evidence" 
-              style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }}
             />
-          </div>
+            <figcaption>Photo evidence submitted with this request</figcaption>
+          </figure>
         )}
 
         {/* Description */}
-        <div className="details-section">
+        <section className="details-section">
           <h3>Description</h3>
           <p>{request.description || 'No description provided'}</p>
-        </div>
+        </section>
 
         {/* Location Info */}
-        <div className="details-section">
+        <section className="details-section">
           <h3>Location</h3>
-          <p>📍 {request.municipality || 'Unknown Municipality'}, Ward {request.ward || 'Unknown'}</p>
-          {request.address && <p>🏠 {request.address}</p>}
-          {request.location_point && (
-            <p className="coordinates">
-              🗺️ Location: {typeof request.location_point === 'string' 
-                ? request.location_point 
-                : `Point (${request.location_point.coordinates?.[0] || '?'}, ${request.location_point.coordinates?.[1] || '?'})`}
-            </p>
-          )}
-        </div>
+          <address>
+            <p>📍 {request.municipality || 'Unknown Municipality'}, Ward {request.ward || 'Unknown'}</p>
+            {request.address && <p>🏠 {request.address}</p>}
+            {request.location_point && (
+              <p className="coordinates">
+                🗺️ Location: {typeof request.location_point === 'string' 
+                  ? request.location_point 
+                  : `Point (${request.location_point.coordinates?.[0] || '?'}, ${request.location_point.coordinates?.[1] || '?'})`}
+              </p>
+            )}
+          </address>
+        </section>
 
         {/* Timeline */}
-        <div className="details-section">
+        <section className="details-section">
           <h3>Timeline</h3>
-          <ul className="timeline-list">
-            <li>
-              <strong>Reported:</strong> {formatDate(request.created_at)}
-            </li>
+          <dl className="timeline-list">
+            <div className="timeline-item">
+              <dt>Reported:</dt>
+              <dd><time dateTime={request.created_at}>{formatDate(request.created_at)}</time></dd>
+            </div>
             {request.updated_at && request.updated_at !== request.created_at && (
-              <li>
-                <strong>Last Updated:</strong> {formatDate(request.updated_at)}
-              </li>
+              <div className="timeline-item">
+                <dt>Last Updated:</dt>
+                <dd><time dateTime={request.updated_at}>{formatDate(request.updated_at)}</time></dd>
+              </div>
             )}
             {request.resolved_at && (
-              <li>
-                <strong>Resolved:</strong> {formatDate(request.resolved_at)}
-              </li>
+              <div className="timeline-item">
+                <dt>Resolved:</dt>
+                <dd><time dateTime={request.resolved_at}>{formatDate(request.resolved_at)}</time></dd>
+              </div>
             )}
             {request.resolution_time_minutes && (
-              <li>
-                <strong>Resolution Time:</strong> {Math.floor(request.resolution_time_minutes / 60)} hours {request.resolution_time_minutes % 60} minutes
-              </li>
+              <div className="timeline-item">
+                <dt>Resolution Time:</dt>
+                <dd>
+                  <output>
+                    {Math.floor(request.resolution_time_minutes / 60)} hours {request.resolution_time_minutes % 60} minutes
+                  </output>
+                </dd>
+              </div>
             )}
-          </ul>
-        </div>
+          </dl>
+        </section>
 
         {/* Assignment Info */}
         {assignment && (
-          <div className="details-section">
+          <section className="details-section">
             <h3>Assigned To</h3>
             <p>👨‍🔧 {assignment.profiles?.full_name || 'Municipal Staff'}</p>
-            <p>📅 Assigned: {formatDate(assignment.assigned_at)}</p>
-          </div>
+            <p>
+              📅 Assigned: <time dateTime={assignment.assigned_at}>{formatDate(assignment.assigned_at)}</time>
+            </p>
+          </section>
         )}
 
         {/* Feedback Section */}
-        <div className="details-section">
+        <section className="details-section">
           <h3>Your Feedback</h3>
           {feedback ? (
-            <div className="feedback-display">
+            <figure className="feedback-display">
               <div className="rating-display">
-                Rating: {'⭐'.repeat(feedback.rating)} ({feedback.rating}/5)
+                <output aria-label={`Rating: ${feedback.rating} out of 5`}>
+                  {'⭐'.repeat(feedback.rating)} ({feedback.rating}/5)
+                </output>
               </div>
               {feedback.comment && (
-                <p className="feedback-comment">"{feedback.comment}"</p>
+                <blockquote className="feedback-comment">
+                  <p>"{feedback.comment}"</p>
+                </blockquote>
               )}
-              <p className="feedback-date">Submitted: {formatDate(feedback.created_at)}</p>
-            </div>
+              <figcaption className="feedback-date">
+                Submitted: <time dateTime={feedback.created_at}>{formatDate(feedback.created_at)}</time>
+              </figcaption>
+            </figure>
           ) : (
             <p className="no-feedback">No feedback submitted yet.</p>
           )}
-        </div>
-      </div>
-
-      <style jsx>{`
-        .request-details-card {
-          background: white;
-          border-radius: 12px;
-          padding: 2rem;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          margin-top: 1.5rem;
-        }
-        .details-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5rem;
-          padding-bottom: 1rem;
-          border-bottom: 2px solid #eef2f6;
-        }
-        .details-header h2 {
-          margin: 0;
-          color: #2c3e50;
-        }
-        .details-section {
-          margin-bottom: 1.5rem;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid #eef2f6;
-        }
-        .details-section h3 {
-          margin: 0 0 0.75rem 0;
-          color: #495057;
-          font-size: 1.1rem;
-        }
-        .details-section p {
-          margin: 0.5rem 0;
-          color: #6c757d;
-        }
-        .details-image {
-          text-align: center;
-          margin: 1rem 0;
-          background: #f8f9fa;
-          padding: 1rem;
-          border-radius: 8px;
-        }
-        .timeline-list {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-        }
-        .timeline-list li {
-          padding: 0.5rem 0;
-          border-bottom: 1px solid #f1f3f5;
-        }
-        .feedback-display {
-          background: #e8f5e9;
-          padding: 1rem;
-          border-radius: 8px;
-        }
-        .rating-display {
-          font-size: 1.2rem;
-          margin-bottom: 0.5rem;
-        }
-        .feedback-comment {
-          font-style: italic;
-          margin: 0.5rem 0;
-        }
-        .no-feedback {
-          color: #6c757d;
-          font-style: italic;
-        }
-        .coordinates {
-          font-family: monospace;
-          font-size: 0.85rem;
-        }
-      `}</style>
+        </section>
+      </section>
     </article>
   );
 }

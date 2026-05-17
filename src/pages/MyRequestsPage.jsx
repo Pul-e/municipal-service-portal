@@ -51,50 +51,46 @@ function MyRequestsPage() {
   }, []);
 
   const handleSubmitFeedback = async (requestId) => {
-  setSubmitting(true);
-  setFeedbackError('');
+    setSubmitting(true);
+    setFeedbackError('');
 
-  try {
-    // Get the current logged-in user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError) throw userError;
-    if (!user) {
-      throw new Error('You must be logged in to submit feedback');
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) throw userError;
+      if (!user) {
+        throw new Error('You must be logged in to submit feedback');
+      }
+
+      const { error: insertError } = await supabase
+        .from('feedback')
+        .insert({
+          request_id: requestId,
+          user_id: user.id,
+          rating: rating,
+          comment: comment,
+        });
+
+      if (insertError) throw insertError;
+
+      setFeedbackSuccess(requestId);
+      setFeedbackOpen(null);
+      setRating(0);
+      setComment('');
+
+      setRequests(requests.map(req =>
+        req.id === requestId ? { ...req, feedback_submitted: true } : req
+      ));
+
+      setTimeout(() => setFeedbackSuccess(null), 3000);
+      
+    } catch (err) {
+      console.error('Feedback error details:', err);
+      setFeedbackError('Failed to submit feedback: ' + (err.message || 'Please try again'));
+    } finally {
+      setSubmitting(false);
     }
-
-    // Insert feedback with user_id
-    const { error: insertError } = await supabase
-      .from('feedback')
-      .insert({
-        request_id: requestId,
-        user_id: user.id,  // ← This is the critical missing field
-        rating: rating,
-        comment: comment,
-      });
-
-    if (insertError) throw insertError;
-
-    // Success!
-    setFeedbackSuccess(requestId);
-    setFeedbackOpen(null);
-    setRating(0);
-    setComment('');
-
-    // Update local state to show feedback submitted
-    setRequests(requests.map(req =>
-      req.id === requestId ? { ...req, feedback_submitted: true } : req
-    ));
-
-    setTimeout(() => setFeedbackSuccess(null), 3000);
-    
-  } catch (err) {
-    console.error('Feedback error details:', err);
-    setFeedbackError('Failed to submit feedback: ' + (err.message || 'Please try again'));
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
 
   const openFeedback = (requestId) => {
     setFeedbackOpen(requestId);
@@ -115,7 +111,6 @@ function MyRequestsPage() {
 
   return (
     <article className="page-container">
-      {/* Back Button */}
       <button className="back-btn" onClick={() => navigate('/resident/dashboard')}>
         ← Back to Dashboard
       </button>
@@ -127,7 +122,6 @@ function MyRequestsPage() {
         </p>
       </header>
 
-      {/* Filter Navigation */}
       <nav className="filter-tabs" aria-label="Filter service requests">
         <ul role="tablist">
           <li role="presentation">
@@ -166,14 +160,13 @@ function MyRequestsPage() {
         </ul>
       </nav>
 
-      {/* Requests List */}
       <section
         id="requests-panel"
         role="tabpanel"
         aria-label={`${activeFilter} service requests`}
       >
         {loading ? (
-          <p style={{ color: '#888', padding: '2rem 0', textAlign: 'center' }}>Loading your requests...</p>
+          <p className="loading-text" role="status">Loading your requests...</p>
         ) : filteredRequests.length > 0 ? (
           <ul className="requests-list" aria-label="Your service requests">
             {filteredRequests.map((request) => (
@@ -215,14 +208,14 @@ function MyRequestsPage() {
                       )}
 
                       {request.feedback_submitted && (
-                        <span className="feedback-submitted-badge">✅ Feedback Submitted</span>
+                        <output className="feedback-submitted-badge">✅ Feedback Submitted</output>
                       )}
                     </div>
                   </footer>
 
                   {feedbackOpen === request.id && (
-                    <div className="feedback-form-container">
-                      <h4>Rate Your Experience</h4>
+                    <fieldset className="feedback-form-container">
+                      <legend>Rate Your Experience</legend>
                       <p className="feedback-request-info">
                         {request.category} at {request.location}
                       </p>
@@ -272,7 +265,7 @@ function MyRequestsPage() {
                           Cancel
                         </button>
                       </div>
-                    </div>
+                    </fieldset>
                   )}
                 </article>
               </li>
@@ -286,9 +279,9 @@ function MyRequestsPage() {
       </section>
 
       {feedbackSuccess && (
-        <div className="feedback-toast" role="status" aria-live="polite">
+        <output className="feedback-toast" role="status" aria-live="polite">
           ✅ Thank you for your feedback!
-        </div>
+        </output>
       )}
 
       <aside className="help-section" aria-label="Help and information">

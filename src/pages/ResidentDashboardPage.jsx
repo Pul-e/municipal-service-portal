@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import StatusBadge from '../components/StatusBadge';
 
 function ResidentDashboardPage() {
   const navigate = useNavigate();
@@ -67,14 +68,13 @@ function ResidentDashboardPage() {
   if (loading) {
     return (
       <article className="page-container">
-        <p>Loading dashboard...</p>
+        <p role="status">Loading dashboard...</p>
       </article>
     );
   }
 
   return (
     <article className="page-container">
-      {/* Back Button */}
       <button className="back-btn" onClick={() => navigate('/')}>
         ← Back to Home
       </button>
@@ -84,34 +84,34 @@ function ResidentDashboardPage() {
         <p className="page-subtitle">Welcome back, {userName} • Ward {userWard}</p>
       </header>
 
-      <div className="dashboard-actions">
+      <nav className="dashboard-actions" aria-label="Quick actions">
         <Link to="/resident/report" className="primary-action">
           📝 Report New Issue
         </Link>
         <Link to="/resident/my-requests" className="secondary-action">
           📋 View My Requests
         </Link>
-      </div>
+      </nav>
 
-      <section className="quick-stats">
+      <section className="quick-stats" aria-label="Your activity summary">
         <h2>Your Activity</h2>
-        <div className="stats-row">
+        <dl className="stats-row">
           <div className="stat-card">
-            <span className="stat-value">{stats.open}</span>
-            <span className="stat-label">Open</span>
+            <dt className="stat-label">Open</dt>
+            <dd className="stat-value">{stats.open}</dd>
           </div>
           <div className="stat-card">
-            <span className="stat-value">{stats.resolved}</span>
-            <span className="stat-label">Resolved</span>
+            <dt className="stat-label">Resolved</dt>
+            <dd className="stat-value">{stats.resolved}</dd>
           </div>
           <div className="stat-card">
-            <span className="stat-value">{userWard}</span>
-            <span className="stat-label">Ward</span>
+            <dt className="stat-label">Ward</dt>
+            <dd className="stat-value">{userWard}</dd>
           </div>
-        </div>
+        </dl>
       </section>
 
-      <section className="dashboard-section">
+      <section className="dashboard-section" aria-label="Your recent requests">
         <h2>Your Recent Requests</h2>
         {recentRequests.length > 0 ? (
           <ul className="requests-list">
@@ -119,14 +119,12 @@ function ResidentDashboardPage() {
               <li key={req.id}>
                 <article className="request-card">
                   <header className="request-header">
-                    <span className="request-category">
+                    <h3 className="request-category">
                       {getCategoryIcon(req.category)} {req.category}
-                    </span>
-                    <span className={`status-badge status-${(req.status || '').toLowerCase().replace(/\s+/g, '-')}`}>
-                      {req.status}
-                    </span>
+                    </h3>
+                    <StatusBadge status={req.status} />
                   </header>
-                  <p className="request-location">{req.location || 'No location'}</p>
+                  <address className="request-location">{req.location || 'No location'}</address>
                 </article>
               </li>
             ))}

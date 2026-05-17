@@ -16,7 +16,6 @@ function ReportIssuePage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Fetch existing reports to show as coloured markers on the map
   useEffect(() => {
     const fetchExistingReports = async () => {
       const { data, error } = await supabase
@@ -32,16 +31,13 @@ function ReportIssuePage() {
       const markers = data
         .map(req => {
           let lng, lat;
-          // If location_point is a string like "POINT(lng lat)"
           if (typeof req.location_point === 'string') {
             const match = req.location_point.match(/POINT\(([-\d.]+) ([-+\d.]+)\)/);
             if (match) {
               lng = parseFloat(match[1]);
               lat = parseFloat(match[2]);
             }
-          }
-          // If location_point is a GeoJSON object (from Supabase)
-          else if (req.location_point && typeof req.location_point === 'object') {
+          } else if (req.location_point && typeof req.location_point === 'object') {
             if (req.location_point.coordinates && req.location_point.coordinates.length === 2) {
               lng = req.location_point.coordinates[0];
               lat = req.location_point.coordinates[1];
@@ -66,19 +62,16 @@ function ReportIssuePage() {
     fetchExistingReports();
   }, []);
 
-  // Handle image selection
   const handleImageSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError('Image must be less than 5MB');
         e.target.value = '';
         return;
       }
       
-      // Check file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
         setError('Only JPEG, PNG, GIF, or WEBP images are allowed');
@@ -88,7 +81,6 @@ function ReportIssuePage() {
       
       setSelectedImage(file);
       
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -100,12 +92,10 @@ function ReportIssuePage() {
     }
   };
 
-  // Handle location selection from the map
   const handleLocationSelect = async (location) => {
     setSelectedLocation(location);
     
     try {
-      // Call Supabase RPC directly (no backend needed)
       const { data, error } = await supabase
         .rpc('get_ward_from_location', { 
           lat: location.lat, 
@@ -139,7 +129,6 @@ function ReportIssuePage() {
       return;
     }
 
-    // Get the current user
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
 
@@ -151,7 +140,6 @@ function ReportIssuePage() {
 
     let imageUrl = null;
 
-    // Upload image if selected
     if (selectedImage) {
       setUploadingImage(true);
       const fileExt = selectedImage.name.split('.').pop();
@@ -160,7 +148,7 @@ function ReportIssuePage() {
       const fileName = `${timestamp}_${randomString}.${fileExt}`;
       const filePath = `requests/${userId}/${fileName}`;
 
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('request-images')
         .upload(filePath, selectedImage, {
           cacheControl: '3600',
@@ -214,9 +202,7 @@ function ReportIssuePage() {
       <form onSubmit={handleSubmit} className="report-form" aria-label="Service issue report form">
 
         {error && (
-          <div style={{ background: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem' }}>
-            {error}
-          </div>
+          <div className="error-message" role="alert">{error}</div>
         )}
 
         <fieldset className="form-group">
@@ -262,24 +248,26 @@ function ReportIssuePage() {
               onChange={handleImageSelect}
             />
             {imagePreview && (
-              <div style={{ marginTop: '10px' }}>
+              <figure className="image-preview-container">
                 <img 
                   src={imagePreview} 
-                  alt="Preview" 
-                  style={{ maxWidth: '200px', maxHeight: '150px', borderRadius: '4px' }}
+                  alt="Preview of uploaded issue photo" 
+                  className="image-preview"
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedImage(null);
-                    setImagePreview(null);
-                    document.getElementById('photo').value = '';
-                  }}
-                  style={{ marginLeft: '10px', padding: '4px 8px', fontSize: '12px' }}
-                >
-                  Remove
-                </button>
-              </div>
+                <figcaption>
+                  <button
+                    type="button"
+                    className="remove-image-btn"
+                    onClick={() => {
+                      setSelectedImage(null);
+                      setImagePreview(null);
+                      document.getElementById('photo').value = '';
+                    }}
+                  >
+                    Remove
+                  </button>
+                </figcaption>
+              </figure>
             )}
           </div>
         </fieldset>
@@ -292,7 +280,7 @@ function ReportIssuePage() {
             <InteractiveMap onLocationSelect={handleLocationSelect} markers={reportMarkers} />
             
             {selectedLocation && (
-              <div className="location-info" style={{ marginTop: '10px', padding: '8px', background: '#e8f5e9', borderRadius: '4px' }}>
+              <output className="location-info">
                 <strong>✅ Selected location:</strong>
                 <br />
                 Latitude: {selectedLocation.lat.toFixed(6)}
@@ -304,20 +292,18 @@ function ReportIssuePage() {
                     <br />
                     <strong>🏛️ Ward (auto-detected):</strong> Ward {wardInfo.ward_number} - {wardInfo.municipality}
                     <br />
-                    <span style={{ fontSize: '0.9em', color: '#666' }}>
-                      Data source: Municipal Demarcation Board (MDB) 2024
-                    </span>
+                    <cite>Data source: Municipal Demarcation Board (MDB) 2024</cite>
                   </>
                 )}
                 {!wardInfo && (
                   <>
                     <br />
-                    <span style={{ fontSize: '0.9em', color: '#e67e22' }}>
+                    <span className="ward-not-found">
                       ⚠️ No ward found for this location (outside South Africa?)
                     </span>
                   </>
                 )}
-              </div>
+              </output>
             )}
           </div>
         </fieldset>

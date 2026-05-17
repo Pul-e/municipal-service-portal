@@ -88,7 +88,6 @@ function WorkerDashboardPage() {
 
         const merged = (requestsData || []).map(req => {
             const assignment = assignments.find(a => a.request_id === req.id);
-
             return {
                 ...req,
                 assignment_id: assignment?.request_id,
@@ -159,7 +158,6 @@ function WorkerDashboardPage() {
     const sendStatusEmail = async (requestId, newStatus) => {
         try {
             const reporterInfo = await getReporterEmail(requestId);
-
             if (!reporterInfo?.email) return;
 
             const payload = {
@@ -191,21 +189,15 @@ function WorkerDashboardPage() {
             }
 
             const now = new Date().toISOString();
-
-            const updatePayload = {
-                status: newStatus,
-                updated_at: now
-            };
+            const updatePayload = { status: newStatus, updated_at: now };
 
             if (newStatus === 'Resolved') {
                 updatePayload.resolved_at = now;
-
                 const { error: unassignError } = await supabase
                     .from('service_request_assignments')
                     .update({ unassigned_at: now })
                     .eq('request_id', requestId)
                     .is('unassigned_at', null);
-
                 if (unassignError) throw unassignError;
             }
 
@@ -277,9 +269,9 @@ function WorkerDashboardPage() {
 
     if (loading) {
         return (
-            <div className="page-container">
-                <p>Loading dashboard...</p>
-            </div>
+            <article className="page-container">
+                <p role="status">Loading dashboard...</p>
+            </article>
         );
     }
 
@@ -318,9 +310,10 @@ function WorkerDashboardPage() {
                 </div>
             </header>
 
-            {error && <p className="error-message">{error}</p>}
+            {error && <p className="error-message" role="alert">{error}</p>}
 
-            <section className="worker-stats">
+            {/* Stats */}
+            <section className="worker-stats" aria-label="Workload summary">
                 <dl className="stats-inline">
                     <div>
                         <dt>Assigned to Me</dt>
@@ -337,8 +330,9 @@ function WorkerDashboardPage() {
                 </dl>
             </section>
 
-            <section className="dashboard-section">
-                <h2>📌 Assigned to Me</h2>
+            {/* Assigned Section */}
+            <section className="dashboard-section" aria-labelledby="assigned-heading">
+                <h2 id="assigned-heading">📌 Assigned to Me</h2>
 
                 {assignedActive.length === 0 ? (
                     <p className="empty-state">No requests assigned to you.</p>
@@ -355,19 +349,25 @@ function WorkerDashboardPage() {
                                     </header>
 
                                     <p>{req.description}</p>
-                                    <address>{req.address || req.location}</address>
+                                    <address className="request-location">{req.address || req.location}</address>
 
                                     <footer className="worker-actions">
                                         <StatusBadge status={req.status} />
 
                                         {req.status !== 'Resolved' && req.status !== 'In Progress' && (
-                                            <button onClick={() => handleStatusUpdate(req.id, 'In Progress')}>
+                                            <button
+                                                className="action-btn progress"
+                                                onClick={() => handleStatusUpdate(req.id, 'In Progress')}
+                                            >
                                                 Start Progress
                                             </button>
                                         )}
 
                                         {req.status === 'In Progress' && (
-                                            <button onClick={() => handleStatusUpdate(req.id, 'Resolved')}>
+                                            <button
+                                                className="action-btn resolve"
+                                                onClick={() => handleStatusUpdate(req.id, 'Resolved')}
+                                            >
                                                 Mark Resolved
                                             </button>
                                         )}
@@ -379,8 +379,9 @@ function WorkerDashboardPage() {
                 )}
             </section>
 
-            <section className="dashboard-section">
-                <h2>🆕 New Requests Unassigned</h2>
+            {/* New Unassigned Section */}
+            <section className="dashboard-section" aria-labelledby="new-heading">
+                <h2 id="new-heading">🆕 New Requests Unassigned</h2>
 
                 {newUnassigned.length === 0 ? (
                     <p className="empty-state">No new unassigned requests.</p>
@@ -397,7 +398,7 @@ function WorkerDashboardPage() {
                                     </header>
 
                                     <p>{req.description}</p>
-                                    <address>{req.address || req.location}</address>
+                                    <address className="request-location">{req.address || req.location}</address>
 
                                     <footer className="worker-actions">
                                         <StatusBadge status={req.status || 'Submitted'} />
@@ -416,8 +417,9 @@ function WorkerDashboardPage() {
                 )}
             </section>
 
-            <section className="dashboard-section">
-                <h2>📋 Acknowledged</h2>
+            {/* Acknowledged Section */}
+            <section className="dashboard-section" aria-labelledby="ack-heading">
+                <h2 id="ack-heading">📋 Acknowledged</h2>
 
                 {ackUnassigned.length === 0 ? (
                     <p className="empty-state">No acknowledged unassigned requests.</p>
@@ -434,12 +436,15 @@ function WorkerDashboardPage() {
                                     </header>
 
                                     <p>{req.description}</p>
-                                    <address>{req.address || req.location}</address>
+                                    <address className="request-location">{req.address || req.location}</address>
 
                                     <footer className="worker-actions">
                                         <StatusBadge status={req.status} />
 
-                                        <button onClick={() => handleStatusUpdate(req.id, 'In Progress')}>
+                                        <button
+                                            className="action-btn progress"
+                                            onClick={() => handleStatusUpdate(req.id, 'In Progress')}
+                                        >
                                             Mark In Progress
                                         </button>
                                     </footer>
@@ -450,8 +455,9 @@ function WorkerDashboardPage() {
                 )}
             </section>
 
-            <section className="dashboard-section">
-                <h2>🛠 In Progress</h2>
+            {/* In Progress Section */}
+            <section className="dashboard-section" aria-labelledby="prog-heading">
+                <h2 id="prog-heading">🛠 In Progress</h2>
 
                 {progUnassigned.length === 0 ? (
                     <p className="empty-state">No in-progress unassigned requests.</p>
@@ -468,12 +474,15 @@ function WorkerDashboardPage() {
                                     </header>
 
                                     <p>{req.description}</p>
-                                    <address>{req.address || req.location}</address>
+                                    <address className="request-location">{req.address || req.location}</address>
 
                                     <footer className="worker-actions">
                                         <StatusBadge status={req.status} />
 
-                                        <button onClick={() => handleStatusUpdate(req.id, 'Resolved')}>
+                                        <button
+                                            className="action-btn resolve"
+                                            onClick={() => handleStatusUpdate(req.id, 'Resolved')}
+                                        >
                                             Mark Resolved
                                         </button>
                                     </footer>
