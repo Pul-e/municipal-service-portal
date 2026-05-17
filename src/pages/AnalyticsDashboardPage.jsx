@@ -20,14 +20,12 @@ function AnalyticsDashboardPage() {
     setError('');
 
     try {
-      // Report 1: Request Volume (from Supabase directly)
       const { data: requests, error: reqError } = await supabase
         .from('service_requests')
         .select('category, status, created_at');
 
       if (reqError) throw reqError;
 
-      // Process volume data
       const byCategory = {};
       const byStatus = {};
       const timeline = {};
@@ -47,7 +45,6 @@ function AnalyticsDashboardPage() {
         generated_at: new Date().toISOString()
       });
 
-      // Report 2: Resolution Times
       const { data: resolvedRequests, error: resError } = await supabase
         .from('service_requests')
         .select('category, resolution_time_minutes')
@@ -81,7 +78,6 @@ function AnalyticsDashboardPage() {
         generated_at: new Date().toISOString()
       });
 
-      // Report 3: Worker Performance
       const { data: assignments, error: assignError } = await supabase
         .from('service_request_assignments')
         .select(`
@@ -202,7 +198,7 @@ function AnalyticsDashboardPage() {
     return (
       <article className="page-container">
         <h1>Analytics Dashboard</h1>
-        <p className="loading-text">Loading reports...</p>
+        <p className="loading-text" role="status">Loading reports...</p>
       </article>
     );
   }
@@ -219,81 +215,77 @@ function AnalyticsDashboardPage() {
       </header>
 
       {error && (
-        <div className="error-message" role="alert" style={{ background: '#fee2e2', color: '#991b1b', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
-          {error}
-        </div>
+        <div className="error-message" role="alert">{error}</div>
       )}
 
-      <nav className="report-tabs" aria-label="Analytics reports" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid #ddd' }}>
+      {/* Report Tabs */}
+      <nav className="report-tabs" aria-label="Analytics reports">
         <button
           className={`report-tab ${activeReport === 'volume' ? 'active' : ''}`}
           onClick={() => setActiveReport('volume')}
-          style={{ padding: '0.75rem 1.5rem', background: activeReport === 'volume' ? '#007bff' : '#f0f0f0', color: activeReport === 'volume' ? 'white' : '#333', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer' }}
+          aria-pressed={activeReport === 'volume'}
         >
           📈 Request Volume
         </button>
         <button
           className={`report-tab ${activeReport === 'resolution' ? 'active' : ''}`}
           onClick={() => setActiveReport('resolution')}
-          style={{ padding: '0.75rem 1.5rem', background: activeReport === 'resolution' ? '#007bff' : '#f0f0f0', color: activeReport === 'resolution' ? 'white' : '#333', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer' }}
+          aria-pressed={activeReport === 'resolution'}
         >
           ⏱️ Resolution Times
         </button>
         <button
           className={`report-tab ${activeReport === 'worker' ? 'active' : ''}`}
           onClick={() => setActiveReport('worker')}
-          style={{ padding: '0.75rem 1.5rem', background: activeReport === 'worker' ? '#007bff' : '#f0f0f0', color: activeReport === 'worker' ? 'white' : '#333', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer' }}
+          aria-pressed={activeReport === 'worker'}
         >
           👷 Worker Performance
         </button>
       </nav>
 
-      <div className="export-actions" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', justifyContent: 'flex-end' }}>
+      {/* Export Actions */}
+      <div className="export-actions">
         <button
           className="export-btn csv"
           onClick={() => handleExportCSV(
             activeReport === 'volume' ? 'request-volume' :
             activeReport === 'resolution' ? 'resolution-times' : 'worker-performance'
           )}
-          style={{ padding: '0.5rem 1rem', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
         >
           📥 Export CSV
         </button>
-        <button
-          className="export-btn pdf"
-          onClick={handleExportPDF}
-          style={{ padding: '0.5rem 1rem', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-        >
+        <button className="export-btn pdf" onClick={handleExportPDF}>
           🖨️ Export PDF
         </button>
       </div>
 
+      {/* Report 1: Request Volume */}
       {activeReport === 'volume' && volumeData && (
-        <section className="report-section" aria-label="Request volume report" style={{ background: 'white', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <section className="report-section" aria-label="Request volume report">
           <h2>Request Volume Analysis</h2>
           
-          <div className="report-stats" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div className="report-stat-card" style={{ flex: 1, textAlign: 'center', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
-              <span className="report-stat-value" style={{ fontSize: '2rem', fontWeight: 'bold', display: 'block' }}>{volumeData.total_requests}</span>
-              <span className="report-stat-label">Total Requests</span>
+          <dl className="report-stats">
+            <div className="report-stat-card">
+              <dt className="report-stat-label">Total Requests</dt>
+              <dd className="report-stat-value">{volumeData.total_requests}</dd>
             </div>
-            <div className="report-stat-card" style={{ flex: 1, textAlign: 'center', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
-              <span className="report-stat-value" style={{ fontSize: '2rem', fontWeight: 'bold', display: 'block' }}>{Object.keys(volumeData.by_category || {}).length}</span>
-              <span className="report-stat-label">Categories</span>
+            <div className="report-stat-card">
+              <dt className="report-stat-label">Categories</dt>
+              <dd className="report-stat-value">{Object.keys(volumeData.by_category || {}).length}</dd>
             </div>
-          </div>
+          </dl>
 
-          <div className="chart-section" style={{ marginBottom: '1.5rem' }}>
-            <h3>By Category</h3>
+          <figure className="chart-section">
+            <figcaption>By Category</figcaption>
             <div className="bar-chart">
               {Object.entries(volumeData.by_category || {}).map(([category, count]) => {
                 const maxVal = Math.max(...Object.values(volumeData.by_category));
                 const width = (count / maxVal) * 100;
                 return (
-                  <div key={category} className="bar-row" style={{ marginBottom: '0.5rem' }}>
-                    <span className="bar-label" style={{ display: 'inline-block', width: '120px' }}>{category}</span>
-                    <div className="bar-track" style={{ display: 'inline-block', width: 'calc(100% - 130px)', background: '#e9ecef', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div className="bar-fill" style={{ width: `${width}%`, background: '#007bff', height: '24px', lineHeight: '24px', color: 'white', paddingLeft: '8px' }}>
+                  <div key={category} className="bar-row">
+                    <span className="bar-label">{category}</span>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${width}%` }}>
                         <span className="bar-value">{count}</span>
                       </div>
                     </div>
@@ -301,122 +293,139 @@ function AnalyticsDashboardPage() {
                 );
               })}
             </div>
-          </div>
+          </figure>
 
-          <div className="chart-section">
-            <h3>By Status</h3>
-            <div className="status-grid" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <figure className="chart-section">
+            <figcaption>By Status</figcaption>
+            <div className="status-grid">
               {Object.entries(volumeData.by_status || {}).map(([status, count]) => (
-                <div key={status} className="status-card" style={{ flex: 1, minWidth: '100px', textAlign: 'center', padding: '0.75rem', background: '#f8f9fa', borderRadius: '8px' }}>
-                  <span className="status-count" style={{ fontSize: '1.5rem', fontWeight: 'bold', display: 'block' }}>{count}</span>
+                <div key={status} className="status-card">
+                  <output className="status-count">{count}</output>
                   <span className="status-name">{status}</span>
                 </div>
               ))}
             </div>
-          </div>
+          </figure>
+
+          <footer className="report-timestamp">
+            <time dateTime={volumeData.generated_at}>
+              Generated: {new Date(volumeData.generated_at).toLocaleString()}
+            </time>
+          </footer>
         </section>
       )}
 
+      {/* Report 2: Resolution Times */}
       {activeReport === 'resolution' && resolutionData && (
-        <section className="report-section" aria-label="Resolution time report" style={{ background: 'white', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <section className="report-section" aria-label="Resolution time report">
           <h2>Resolution Time Analysis</h2>
           
-          <div className="report-stats" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div className="report-stat-card" style={{ flex: 1, textAlign: 'center', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
-              <span className="report-stat-value" style={{ fontSize: '2rem', fontWeight: 'bold', display: 'block' }}>{resolutionData.total_resolved}</span>
-              <span className="report-stat-label">Total Resolved</span>
+          <dl className="report-stats">
+            <div className="report-stat-card">
+              <dt className="report-stat-label">Total Resolved</dt>
+              <dd className="report-stat-value">{resolutionData.total_resolved}</dd>
             </div>
-            <div className="report-stat-card highlight" style={{ flex: 1, textAlign: 'center', padding: '1rem', background: '#28a745', color: 'white', borderRadius: '8px' }}>
-              <span className="report-stat-value" style={{ fontSize: '2rem', fontWeight: 'bold', display: 'block' }}>{resolutionData.overall_average_hours}h</span>
-              <span className="report-stat-label">Avg Resolution Time</span>
+            <div className="report-stat-card highlight">
+              <dt className="report-stat-label">Avg Resolution Time</dt>
+              <dd className="report-stat-value">{resolutionData.overall_average_hours}h</dd>
             </div>
-          </div>
+          </dl>
 
-          <div className="chart-section">
-            <h3>Average Resolution Time by Category</h3>
+          <figure className="chart-section">
+            <figcaption>Average Resolution Time by Category</figcaption>
             <div className="bar-chart">
               {Object.entries(resolutionData.by_category || {}).map(([category, data]) => {
                 const maxHours = Math.max(...Object.values(resolutionData.by_category).map(d => d.average_hours), 1);
                 const width = (data.average_hours / maxHours) * 100;
                 return (
-                  <div key={category} className="bar-row" style={{ marginBottom: '0.5rem' }}>
-                    <span className="bar-label" style={{ display: 'inline-block', width: '120px' }}>{category}</span>
-                    <div className="bar-track" style={{ display: 'inline-block', width: 'calc(100% - 200px)', background: '#e9ecef', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div className="bar-fill resolution-bar" style={{ width: `${width}%`, background: '#28a745', height: '24px', lineHeight: '24px', color: 'white', paddingLeft: '8px' }}>
+                  <div key={category} className="bar-row">
+                    <span className="bar-label">{category}</span>
+                    <div className="bar-track">
+                      <div className="bar-fill resolution-bar" style={{ width: `${width}%` }}>
                         <span className="bar-value">{data.average_hours}h</span>
                       </div>
                     </div>
-                    <span className="bar-extra" style={{ marginLeft: '8px', fontSize: '0.8rem', color: '#666' }}>({data.count} resolved)</span>
+                    <span className="bar-extra">({data.count} resolved)</span>
                   </div>
                 );
               })}
             </div>
-          </div>
+          </figure>
+
+          <footer className="report-timestamp">
+            <time dateTime={resolutionData.generated_at}>
+              Generated: {new Date(resolutionData.generated_at).toLocaleString()}
+            </time>
+          </footer>
         </section>
       )}
 
+      {/* Report 3: Worker Performance */}
       {activeReport === 'worker' && workerData && (
-        <section className="report-section" aria-label="Worker performance report" style={{ background: 'white', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <section className="report-section" aria-label="Worker performance report">
           <h2>Worker Performance</h2>
           
-          <div className="report-stats" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div className="report-stat-card" style={{ flex: 1, textAlign: 'center', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
-              <span className="report-stat-value" style={{ fontSize: '2rem', fontWeight: 'bold', display: 'block' }}>{workerData.workers?.length || 0}</span>
-              <span className="report-stat-label">Active Workers</span>
+          <dl className="report-stats">
+            <div className="report-stat-card">
+              <dt className="report-stat-label">Active Workers</dt>
+              <dd className="report-stat-value">{workerData.workers?.length || 0}</dd>
             </div>
-            <div className="report-stat-card" style={{ flex: 1, textAlign: 'center', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
-              <span className="report-stat-value" style={{ fontSize: '2rem', fontWeight: 'bold', display: 'block' }}>
+            <div className="report-stat-card">
+              <dt className="report-stat-label">Total Resolved</dt>
+              <dd className="report-stat-value">
                 {workerData.workers?.reduce((sum, w) => sum + w.resolved_requests, 0) || 0}
-              </span>
-              <span className="report-stat-label">Total Resolved</span>
+              </dd>
             </div>
-          </div>
+          </dl>
 
-          <div className="table-responsive">
-            <table className="users-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <figure className="table-responsive">
+            <table className="users-table">
+              <caption>Worker performance rankings</caption>
               <thead>
-                <tr style={{ borderBottom: '2px solid #dee2e6' }}>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Rank</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Worker Name</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Resolved</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Avg Resolution Time</th>
+                <tr>
+                  <th scope="col">Rank</th>
+                  <th scope="col">Worker Name</th>
+                  <th scope="col">Resolved</th>
+                  <th scope="col">Avg Resolution Time</th>
                 </tr>
               </thead>
               <tbody>
                 {workerData.workers?.map((worker, index) => (
-                  <tr key={worker.staff_id} style={{ borderBottom: '1px solid #dee2e6' }}>
-                    <td style={{ padding: '0.5rem' }}>
-                      <span className={`rank-badge rank-${index + 1}`} style={{ 
-                        background: index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#f8f9fa',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        fontWeight: 'bold'
-                      }}>
+                  <tr key={worker.staff_id}>
+                    <td>
+                      <output className={`rank-badge rank-${index + 1}`}>
                         #{index + 1}
-                      </span>
+                      </output>
                     </td>
-                    <td style={{ padding: '0.5rem' }}>{worker.name}</td>
-                    <td style={{ padding: '0.5rem' }}>{worker.resolved_requests}</td>
-                    <td style={{ padding: '0.5rem' }}>{worker.average_resolution_hours}h</td>
+                    <td>{worker.name}</td>
+                    <td>{worker.resolved_requests}</td>
+                    <td>{worker.average_resolution_hours}h</td>
                   </tr>
                 ))}
                 {(!workerData.workers || workerData.workers.length === 0) && (
                   <tr>
-                    <td colSpan="4" className="empty-state" style={{ textAlign: 'center', padding: '2rem', color: '#6c757d' }}>No worker data available</td>
+                    <td colSpan="4" className="empty-state">No worker data available</td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
+          </figure>
+
+          <footer className="report-timestamp">
+            <time dateTime={workerData.generated_at}>
+              Generated: {new Date(workerData.generated_at).toLocaleString()}
+            </time>
+          </footer>
         </section>
       )}
 
-      <div className="refresh-section" style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-        <button className="secondary-btn" onClick={fetchAllReports} style={{ padding: '0.5rem 1rem', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+      <footer className="refresh-section">
+        <button className="secondary-btn" onClick={fetchAllReports}>
           🔄 Refresh Reports
         </button>
-      </div>
+      </footer>
 
+      {/* Print styles */}
       <style>{`
         @media print {
           .back-btn, .report-tabs, .export-actions, .refresh-section {

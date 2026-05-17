@@ -100,7 +100,7 @@ function ManageUsersPage() {
     return (
       <div className="page-container">
         <h1>Manage Users</h1>
-        <p>Loading users...</p>
+        <p role="status">Loading users...</p>
       </div>
     );
   }
@@ -117,32 +117,36 @@ function ManageUsersPage() {
         <p className="page-subtitle">View and manage all registered users</p>
       </header>
 
-      <section className="admin-stats" aria-label="User statistics">
-        <div className="stat-card">
-          <span className="stat-value">{users.length}</span>
-          <span className="stat-label">Total Users</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{users.filter(u => u.role === 'resident').length}</span>
-          <span className="stat-label">Residents</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{users.filter(u => u.role === 'worker').length}</span>
-          <span className="stat-label">Workers</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{users.filter(u => u.role === 'admin').length}</span>
-          <span className="stat-label">Admins</span>
-        </div>
+      {/* Stats */}
+      <section aria-label="User statistics">
+        <dl className="admin-stats">
+          <div className="stat-card">
+            <dt className="stat-label">Total Users</dt>
+            <dd className="stat-value">{users.length}</dd>
+          </div>
+          <div className="stat-card">
+            <dt className="stat-label">Residents</dt>
+            <dd className="stat-value">{users.filter(u => u.role === 'resident').length}</dd>
+          </div>
+          <div className="stat-card">
+            <dt className="stat-label">Workers</dt>
+            <dd className="stat-value">{users.filter(u => u.role === 'worker').length}</dd>
+          </div>
+          <div className="stat-card">
+            <dt className="stat-label">Admins</dt>
+            <dd className="stat-value">{users.filter(u => u.role === 'admin').length}</dd>
+          </div>
+        </dl>
       </section>
 
       {error && (
         <div className="error-message" role="alert">{error}</div>
       )}
       {successMessage && (
-        <div className="success-message" role="status">{successMessage}</div>
+        <output className="success-message" role="status">{successMessage}</output>
       )}
 
+      {/* Filter Tabs */}
       <nav className="filter-tabs" aria-label="Filter users by role">
         <ul role="tablist">
           <li role="presentation">
@@ -152,7 +156,7 @@ function ManageUsersPage() {
               className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
               onClick={() => setFilter('all')}
             >
-              All Users ({users.length})
+              All Users <span className="count">{users.length}</span>
             </button>
           </li>
           <li role="presentation">
@@ -162,7 +166,7 @@ function ManageUsersPage() {
               className={`filter-tab ${filter === 'residents' ? 'active' : ''}`}
               onClick={() => setFilter('residents')}
             >
-              Residents ({users.filter(u => u.role === 'resident').length})
+              Residents <span className="count">{users.filter(u => u.role === 'resident').length}</span>
             </button>
           </li>
           <li role="presentation">
@@ -172,25 +176,29 @@ function ManageUsersPage() {
               className={`filter-tab ${filter === 'workers' ? 'active' : ''}`}
               onClick={() => setFilter('workers')}
             >
-              Workers ({users.filter(u => u.role === 'worker').length})
+              Workers <span className="count">{users.filter(u => u.role === 'worker').length}</span>
             </button>
           </li>
         </ul>
       </nav>
 
-      <section className="users-table-section" aria-label="Users list">
+      {/* Users Table */}
+      <section className="users-table-section" aria-label="Registered users">
         {filteredUsers.length === 0 ? (
           <p className="empty-state">No users found.</p>
         ) : (
-          <div className="table-responsive">
+          <figure className="table-responsive">
             <table className="users-table">
+              <caption className="sr-only">List of registered users with role management</caption>
               <thead>
                 <tr>
-                  <th>Email</th>
-                  <th>Name</th>
-                  <th>Current Role</th>
-                  <th>Joined</th>
-                  <th>Actions</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Current Role</th>
+                  <th scope="col">
+                    <time>Joined</time>
+                  </th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -201,13 +209,17 @@ function ManageUsersPage() {
                       <td>{user.email || '—'}</td>
                       <td>{user.full_name || '—'}</td>
                       <td>
-                        <span className={`role-badge ${roleBadge.class}`}>
+                        <output className={`role-badge ${roleBadge.class}`}>
                           {roleBadge.label}
-                        </span>
+                        </output>
                       </td>
-                      <td>{new Date(user.created_at).toLocaleDateString()}</td>
                       <td>
-                        {user.role !== 'admin' && (
+                        <time dateTime={user.created_at}>
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </time>
+                      </td>
+                      <td>
+                        {user.role !== 'admin' ? (
                           <select
                             className="role-select"
                             value={user.role}
@@ -217,8 +229,7 @@ function ManageUsersPage() {
                             <option value="user">🏠 Make Resident</option>
                             <option value="staff">🔧 Make Worker</option>
                           </select>
-                        )}
-                        {user.role === 'admin' && (
+                        ) : (
                           <span className="admin-protected">Protected</span>
                         )}
                       </td>
@@ -227,15 +238,15 @@ function ManageUsersPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </figure>
         )}
       </section>
 
-      <div className="refresh-section">
+      <footer className="refresh-section">
         <button className="secondary-btn" onClick={fetchUsers}>
           🔄 Refresh Users
         </button>
-      </div>
+      </footer>
     </article>
   );
 }

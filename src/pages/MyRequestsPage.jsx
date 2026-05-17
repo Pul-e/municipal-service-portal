@@ -13,7 +13,6 @@ function timeAgo(dateStr) {
 
 function MyRequestsPage() {
   const navigate = useNavigate();
-
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -26,93 +25,51 @@ function MyRequestsPage() {
   const [feedbackError, setFeedbackError] = useState('');
 
   useEffect(() => {
+    async function fetchMyRequests() {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('service_requests')
+        .select('*, municipality, ward')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching requests:', error.message);
+      } else {
+        setRequests(data || []);
+      }
+      setLoading(false);
+    }
+
     fetchMyRequests();
   }, []);
-
-  async function fetchMyRequests() {
-    setLoading(true);
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) {
-      console.error('User error:', userError.message);
-      setLoading(false);
-      return;
-    }
-
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const { data: requestData, error: requestError } = await supabase
-      .from('service_requests')
-      .select('*, municipality, ward')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (requestError) {
-      console.error('Error fetching requests:', requestError.message);
-      setLoading(false);
-      return;
-    }
-
-    const requestIds = (requestData || []).map((req) => req.id);
-
-    if (requestIds.length === 0) {
-      setRequests([]);
-      setLoading(false);
-      return;
-    }
-
-    const { data: feedbackData, error: feedbackError } = await supabase
-      .from('feedback')
-      .select('request_id')
-      .eq('user_id', user.id)
-      .in('request_id', requestIds);
-
-    if (feedbackError) {
-      console.error('Error fetching feedback:', feedbackError.message);
-    }
-
-    const feedbackRequestIds = new Set(
-      (feedbackData || []).map((feedback) => feedback.request_id)
-    );
-
-    const requestsWithFeedback = (requestData || []).map((req) => ({
-      ...req,
-      feedback_submitted: feedbackRequestIds.has(req.id),
-    }));
-
-    setRequests(requestsWithFeedback);
-    setLoading(false);
-  }
 
   const handleSubmitFeedback = async (requestId) => {
     setSubmitting(true);
     setFeedbackError('');
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
       if (userError) throw userError;
-
       if (!user) {
         throw new Error('You must be logged in to submit feedback');
       }
 
-      const { error: insertError } = await supabase.from('feedback').insert({
-        request_id: requestId,
-        user_id: user.id,
-        rating,
-        comment,
-      });
+      const { error: insertError } = await supabase
+        .from('feedback')
+        .insert({
+          request_id: requestId,
+          user_id: user.id,
+          rating: rating,
+          comment: comment,
+        });
 
       if (insertError) throw insertError;
 
@@ -121,20 +78,15 @@ function MyRequestsPage() {
       setRating(0);
       setComment('');
 
-      setRequests((prevRequests) =>
-        prevRequests.map((req) =>
-          req.id === requestId
-            ? { ...req, feedback_submitted: true }
-            : req
-        )
-      );
+      setRequests(requests.map(req =>
+        req.id === requestId ? { ...req, feedback_submitted: true } : req
+      ));
 
       setTimeout(() => setFeedbackSuccess(null), 3000);
+      
     } catch (err) {
       console.error('Feedback error details:', err);
-      setFeedbackError(
-        'Failed to submit feedback: ' + (err.message || 'Please try again')
-      );
+      setFeedbackError('Failed to submit feedback: ' + (err.message || 'Please try again'));
     } finally {
       setSubmitting(false);
     }
@@ -154,15 +106,12 @@ function MyRequestsPage() {
     return true;
   });
 
-  const openCount = requests.filter((r) => r.status !== 'Resolved').length;
-  const resolvedCount = requests.filter((r) => r.status === 'Resolved').length;
+  const openCount = requests.filter(r => r.status !== 'Resolved').length;
+  const resolvedCount = requests.filter(r => r.status === 'Resolved').length;
 
   return (
     <article className="page-container">
-      <button
-        className="back-btn"
-        onClick={() => navigate('/resident/dashboard')}
-      >
+      <button className="back-btn" onClick={() => navigate('/resident/dashboard')}>
         ← Back to Dashboard
       </button>
 
@@ -186,7 +135,6 @@ function MyRequestsPage() {
               All Requests <span className="count">{requests.length}</span>
             </button>
           </li>
-
           <li role="presentation">
             <button
               role="tab"
@@ -198,15 +146,12 @@ function MyRequestsPage() {
               Open <span className="count">{openCount}</span>
             </button>
           </li>
-
           <li role="presentation">
             <button
               role="tab"
               aria-selected={activeFilter === 'resolved'}
               aria-controls="requests-panel"
-              className={`filter-tab ${
-                activeFilter === 'resolved' ? 'active' : ''
-              }`}
+              className={`filter-tab ${activeFilter === 'resolved' ? 'active' : ''}`}
               onClick={() => setActiveFilter('resolved')}
             >
               Resolved <span className="count">{resolvedCount}</span>
@@ -221,9 +166,7 @@ function MyRequestsPage() {
         aria-label={`${activeFilter} service requests`}
       >
         {loading ? (
-          <p style={{ color: '#888', padding: '2rem 0', textAlign: 'center' }}>
-            Loading your requests...
-          </p>
+          <p className="loading-text" role="status">Loading your requests...</p>
         ) : filteredRequests.length > 0 ? (
           <ul className="requests-list" aria-label="Your service requests">
             {filteredRequests.map((request) => (
@@ -235,72 +178,56 @@ function MyRequestsPage() {
                   </header>
 
                   <address className="request-location">
-                    📍{' '}
-                    {request.municipality && request.ward
-                      ? `${request.municipality}, Ward ${request.ward}`
-                      : request.location || 'Location not specified'}
+                    📍 {request.municipality && request.ward
+                          ? `${request.municipality}, Ward ${request.ward}`
+                          : (request.location || 'Location not specified')
+                        }
                   </address>
 
                   <footer className="request-footer">
-                    <time
-                      dateTime={request.created_at}
-                      className="request-date"
-                    >
+                    <time dateTime={request.created_at} className="request-date">
                       📅 Reported {timeAgo(request.created_at)}
                     </time>
-
                     <div className="request-actions">
                       <button
                         className="view-details-btn"
                         onClick={() => navigate(`/requests/${request.id}`)}
-                        aria-label={`View details for ${request.category}`}
+                        aria-label={`View details for ${request.category} at ${request.location}`}
                       >
                         View Details →
                       </button>
 
-                      {request.status === 'Resolved' &&
-                        !request.feedback_submitted && (
-                          <button
-                            className="feedback-btn"
-                            onClick={() => openFeedback(request.id)}
-                            aria-label={`Leave feedback for ${request.category}`}
-                          >
-                            ⭐ Rate Service
-                          </button>
-                        )}
+                      {request.status === 'Resolved' && !request.feedback_submitted && (
+                        <button
+                          className="feedback-btn"
+                          onClick={() => openFeedback(request.id)}
+                          aria-label={`Leave feedback for ${request.category}`}
+                        >
+                          ⭐ Rate Service
+                        </button>
+                      )}
 
                       {request.feedback_submitted && (
-                        <span className="feedback-submitted-badge">
-                          ✅ Feedback Submitted
-                        </span>
+                        <output className="feedback-submitted-badge">✅ Feedback Submitted</output>
                       )}
                     </div>
                   </footer>
 
                   {feedbackOpen === request.id && (
-                    <div className="feedback-form-container">
-                      <h4>Rate Your Experience</h4>
-
+                    <fieldset className="feedback-form-container">
+                      <legend>Rate Your Experience</legend>
                       <p className="feedback-request-info">
                         {request.category} at {request.location}
                       </p>
 
-                      <div
-                        className="star-rating"
-                        role="radiogroup"
-                        aria-label="Rate your experience"
-                      >
+                      <div className="star-rating" role="radiogroup" aria-label="Rate your experience">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
                             key={star}
                             type="button"
-                            className={`star-btn ${
-                              star <= rating ? 'active' : ''
-                            }`}
+                            className={`star-btn ${star <= rating ? 'active' : ''}`}
                             onClick={() => setRating(star)}
-                            aria-label={`${star} star${
-                              star !== 1 ? 's' : ''
-                            }`}
+                            aria-label={`${star} star${star !== 1 ? 's' : ''}`}
                           >
                             {star <= rating ? '⭐' : '☆'}
                           </button>
@@ -308,10 +235,7 @@ function MyRequestsPage() {
                       </div>
 
                       <div className="form-group">
-                        <label htmlFor={`comment-${request.id}`}>
-                          Additional Comments (Optional)
-                        </label>
-
+                        <label htmlFor={`comment-${request.id}`}>Additional Comments (Optional)</label>
                         <textarea
                           id={`comment-${request.id}`}
                           value={comment}
@@ -322,9 +246,7 @@ function MyRequestsPage() {
                       </div>
 
                       {feedbackError && (
-                        <p className="feedback-error" role="alert">
-                          {feedbackError}
-                        </p>
+                        <p className="feedback-error" role="alert">{feedbackError}</p>
                       )}
 
                       <div className="feedback-actions">
@@ -335,7 +257,6 @@ function MyRequestsPage() {
                         >
                           {submitting ? 'Submitting...' : 'Submit Feedback'}
                         </button>
-
                         <button
                           className="cancel-feedback-btn"
                           onClick={() => setFeedbackOpen(null)}
@@ -344,7 +265,7 @@ function MyRequestsPage() {
                           Cancel
                         </button>
                       </div>
-                    </div>
+                    </fieldset>
                   )}
                 </article>
               </li>
@@ -358,9 +279,9 @@ function MyRequestsPage() {
       </section>
 
       {feedbackSuccess && (
-        <div className="feedback-toast" role="status" aria-live="polite">
+        <output className="feedback-toast" role="status" aria-live="polite">
           ✅ Thank you for your feedback!
-        </div>
+        </output>
       )}
 
       <aside className="help-section" aria-label="Help and information">

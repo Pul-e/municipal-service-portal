@@ -10,7 +10,6 @@ function AuthCallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Get the session after Google redirect
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -25,7 +24,6 @@ function AuthCallbackPage() {
         
         setStatus('Checking your account...');
 
-        // Check the profiles table for existing role
         let { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
@@ -34,7 +32,6 @@ function AuthCallbackPage() {
 
         let userRole = profile?.role;
 
-        // If no profile exists yet, create one with default role 'user'
         if (profileError && profileError.code === 'PGRST116') {
           setStatus('Creating your account...');
           
@@ -44,7 +41,7 @@ function AuthCallbackPage() {
               id: session.user.id,
               email: session.user.email,
               full_name: session.user.user_metadata?.full_name || session.user.email,
-              role: 'user'  // Default role for new users
+              role: 'user'
             });
 
           if (insertError) {
@@ -64,7 +61,6 @@ function AuthCallbackPage() {
 
         setStatus(`Redirecting to ${userRole} dashboard...`);
         
-        // Redirect based on the role from profiles table
         setTimeout(() => {
           switch (userRole) {
             case 'user':
@@ -92,26 +88,34 @@ function AuthCallbackPage() {
 
   if (error) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <div style={{ color: '#dc2626', fontSize: '24px', marginBottom: '16px' }}>❌</div>
-        <h2 style={{ color: '#991b1b' }}>Sign In Failed</h2>
-        <p style={{ color: '#666' }}>{error}</p>
-        <button 
-          onClick={() => navigate('/signin')}
-          style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer' }}
-        >
-          Back to Sign In
-        </button>
-      </div>
+      <article className="auth-callback-page">
+        <header>
+          <span className="auth-icon" role="img" aria-label="Error">❌</span>
+          <h1>Sign In Failed</h1>
+        </header>
+        <p className="auth-message" role="alert">{error}</p>
+        <footer>
+          <button 
+            onClick={() => navigate('/signin')}
+            className="auth-action-btn"
+          >
+            Back to Sign In
+          </button>
+        </footer>
+      </article>
     );
   }
 
   return (
-    <div style={{ padding: '40px', textAlign: 'center' }}>
-      <div style={{ fontSize: '40px', marginBottom: '16px' }}>🔄</div>
-      <h2>{status}</h2>
-      <p style={{ color: '#666' }}>Please wait while we complete your sign in...</p>
-    </div>
+    <article className="auth-callback-page">
+      <header>
+        <span className="auth-icon" role="img" aria-label="Loading">🔄</span>
+        <h1>{status}</h1>
+      </header>
+      <p className="auth-message" role="status" aria-live="polite">
+        Please wait while we complete your sign in...
+      </p>
+    </article>
   );
 }
 

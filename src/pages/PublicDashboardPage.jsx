@@ -28,7 +28,6 @@ function PublicDashboardPage() {
   const [openCount, setOpenCount] = useState(0);
   const [resolvedCount, setResolvedCount] = useState(0);
 
-  // Fetch recent requests (with municipality & ward) for the list
   useEffect(() => {
     async function fetchRequests() {
       const { data, error } = await supabase
@@ -46,7 +45,6 @@ function PublicDashboardPage() {
     fetchRequests();
   }, []);
 
-  // Fetch counts for open and resolved requests
   useEffect(() => {
     async function fetchCounts() {
       const { count: open, error: openErr } = await supabase
@@ -64,7 +62,6 @@ function PublicDashboardPage() {
     fetchCounts();
   }, []);
 
-  // Calculate average response time
   const fetchAvgResponseTime = async () => {
     const { data, error } = await supabase
       .from('service_requests')
@@ -103,7 +100,6 @@ function PublicDashboardPage() {
     setAvgResponseTime(displayValue.trim());
   };
 
-  // Fetch markers for the map (coloured pins)
   useEffect(() => {
     const fetchReportMarkers = async () => {
       const { data, error } = await supabase
@@ -153,10 +149,8 @@ function PublicDashboardPage() {
     <article className="page-container public-dashboard">
       {/* Hero Header */}
       <header className="dashboard-header">
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <p style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--mc-accent)', marginBottom: '8px' }}>
-            South Africa
-          </p>
+        <div className="hero-content">
+          <p className="hero-eyebrow">South Africa</p>
           <h1>
             Municipal <strong>Connect</strong>
           </h1>
@@ -168,24 +162,24 @@ function PublicDashboardPage() {
 
       {/* Stats Strip */}
       <section className="stats-compact" aria-label="Service delivery statistics">
-        <div className="stat-item">
-          <span className="stat-value">{loading ? '—' : openCount}</span>
-          <span className="stat-label">Open Requests</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value" style={{ color: 'var(--mc-accent)' }}>
-            {loading ? '—' : resolvedCount}
-          </span>
-          <span className="stat-label">Resolved</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value">{avgResponseTime || '—'}</span>
-          <span className="stat-label">Avg Response</span>
-        </div>
+        <dl className="stats-dl">
+          <div className="stat-item">
+            <dt className="stat-label">Open Requests</dt>
+            <dd className="stat-value">{loading ? '—' : openCount}</dd>
+          </div>
+          <div className="stat-item">
+            <dt className="stat-label">Resolved</dt>
+            <dd className="stat-value stat-value-accent">{loading ? '—' : resolvedCount}</dd>
+          </div>
+          <div className="stat-item">
+            <dt className="stat-label">Avg Response</dt>
+            <dd className="stat-value">{avgResponseTime || '—'}</dd>
+          </div>
+        </dl>
       </section>
 
       {/* Map Section */}
-      <section className="map-section-large" aria-label="Ward boundary map" style={{ paddingLeft: '2rem', paddingRight: '2rem' }}>
+      <section className="map-section-large" aria-label="Ward boundary map">
         <h2>Service Delivery Map</h2>
         <p className="map-context">
           Explore service requests across South Africa
@@ -196,47 +190,39 @@ function PublicDashboardPage() {
         <figure className="large-map-container">
           <InteractiveMap onLocationSelect={handleLocationSelect} markers={reportMarkers} />
           <figcaption className="map-data-source">
-            Data Source: South African Municipal Demarcation Board (MDB) 2024
+            <cite>Data Source: South African Municipal Demarcation Board (MDB) 2024</cite>
           </figcaption>
         </figure>
 
         {selectedLocation && (
-          <div className="selected-location-info">
+          <output className="selected-location-info">
             📍 Selected: {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
-          </div>
+          </output>
         )}
 
         {reportMarkers.length > 0 && (
-          <div className="map-legend">
+          <div className="map-legend" aria-label="Map marker legend">
             <span className="legend-item">
-              <span className="legend-dot" style={{ background: '#d97706' }}></span> Acknowledged/Pending
+              <span className="legend-dot legend-dot-warning"></span> Acknowledged/Pending
             </span>
             <span className="legend-item">
-              <span className="legend-dot" style={{ background: '#2176ae' }}></span> In Progress
+              <span className="legend-dot legend-dot-info"></span> In Progress
             </span>
             <span className="legend-item">
-              <span className="legend-dot" style={{ background: '#2d6a4f' }}></span> Resolved
+              <span className="legend-dot legend-dot-success"></span> Resolved
             </span>
           </div>
         )}
       </section>
 
       {/* Recent Reports */}
-      <section
-        className="recent-activity-compact"
-        aria-label="Recent reports"
-        style={{ marginLeft: '2rem', marginRight: '2rem', marginTop: '1.5rem' }}
-      >
+      <section className="recent-activity-compact" aria-label="Recent reports">
         <h3>Recent Reports in Your Area</h3>
 
         {loading ? (
-          <p className="loading-text" style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--mc-muted)', fontSize: '0.875rem' }}>
-            Loading reports...
-          </p>
+          <p className="loading-text" role="status">Loading reports...</p>
         ) : requests.length === 0 ? (
-          <p className="empty-state" style={{ padding: '1.5rem', textAlign: 'center' }}>
-            No reports yet. Be the first to report an issue.
-          </p>
+          <p className="empty-state">No reports yet. Be the first to report an issue.</p>
         ) : (
           <ul className="activity-list-compact">
             {requests.map((req) => (
@@ -247,7 +233,7 @@ function PublicDashboardPage() {
                 <span className="activity-detail">
                   {req.category} reported — {req.municipality || 'Unknown Municipality'}, {req.ward ? `Ward ${req.ward}` : 'Ward not specified'}
                 </span>
-                <span className="activity-time">{timeAgo(req.created_at)}</span>
+                <time className="activity-time" dateTime={req.created_at}>{timeAgo(req.created_at)}</time>
               </li>
             ))}
           </ul>
