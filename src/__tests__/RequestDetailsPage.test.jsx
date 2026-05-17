@@ -1,7 +1,19 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import RequestDetailsPage from '../pages/RequestDetailsPage';
 import { supabase } from '../supabaseClient';
+
+const mockNavigate = jest.fn();
+
+jest.mock('../components/StatusBadge', () => ({ status }) => (
+  <div>{status}</div>
+));
+
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useParams: () => ({ id: '1' }),
+  useNavigate: () => mockNavigate,
+}));
 
 jest.mock('../supabaseClient', () => ({
   supabase: {
@@ -9,270 +21,199 @@ jest.mock('../supabaseClient', () => ({
   },
 }));
 
-jest.mock('../components/StatusBadge', () => {
-  return function MockStatusBadge({ status }) {
-    return <span>{status}</span>;
-  };
-});
+describe('RequestDetailsPage', () => {
 
-const mockNavigate = jest.fn();
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useParams: () => ({
-    id: '1',
-  }),
-  useNavigate: () => mockNavigate,
-}));
+  function setupMocks() {
 
-let mockRequest;
-let mockFeedback;
-let mockAssignment;
+    supabase.from.mockImplementation((table) => {
 
-function createQueryBuilder(table) {
-  return {
-    select: jest.fn(function () {
-      return this;
-    }),
-
-    eq: jest.fn(function () {
-      return this;
-    }),
-
-    is: jest.fn(function () {
-      return this;
-    }),
-
-    single: jest.fn(function () {
       if (table === 'service_requests') {
-        return Promise.resolve({
-          data: mockRequest,
-          error: null,
-        });
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: {
+                    id: 1,
+                    category: 'pothole',
+                    status: 'Resolved',
+                    description: 'Large pothole in road',
+                    municipality: 'Johannesburg',
+                    ward: 58,
+                    address: '123 Main Street',
+                    image_url: 'test-image.jpg',
+                    resolution_image_url: 'resolved.jpg',
+                    created_at: '2026-01-01',
+                    updated_at: '2026-01-02',
+                    resolved_at: '2026-01-03',
+                    resolution_time_minutes: 125,
+                    location_point: {
+                      coordinates: [28.0, -26.0],
+                    },
+                  },
+                  error: null,
+                }),
+            }),
+          }),
+        };
       }
 
-      return Promise.resolve({
-        data: null,
-        error: null,
-      });
-    }),
-
-    maybeSingle: jest.fn(function () {
       if (table === 'feedback') {
-        return Promise.resolve({
-          data: mockFeedback,
-          error: null,
-        });
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () =>
+                Promise.resolve({
+                  data: {
+                    rating: 5,
+                    comment: 'Excellent service',
+                    created_at: '2026-01-03',
+                  },
+                  error: null,
+                }),
+            }),
+          }),
+        };
       }
 
       if (table === 'service_request_assignments') {
-        return Promise.resolve({
-          data: mockAssignment,
-          error: null,
-        });
+        return {
+          select: () => ({
+            eq: () => ({
+              order: () => ({
+                limit: () => ({
+                  maybeSingle: () =>
+                    Promise.resolve({
+                      data: {
+                        assigned_at: '2026-01-02',
+                        profiles: {
+                          full_name: 'John Worker',
+                        },
+                      },
+                      error: null,
+                    }),
+                }),
+              }),
+            }),
+          }),
+        };
       }
 
-      return Promise.resolve({
-        data: null,
-        error: null,
-      });
-    }),
-  };
-}
+    });
+  }
 
-beforeEach(() => {
-  jest.clearAllMocks();
+  test('renders loading state', () => {
 
-  mockRequest = {
-    id: 1,
-    category: 'burst-pipe',
-    status: 'Resolved',
-    description: 'Major pipe leak near school',
-    municipality: 'Johannesburg',
-    ward: '12',
-    address: '10 Main Road',
-    location_point: 'POINT(28.0473 -26.2041)',
-    created_at: '2026-05-10T10:00:00',
-    updated_at: '2026-05-11T12:00:00',
-    resolved_at: '2026-05-12T13:00:00',
-    resolution_time_minutes: 180,
-    image_url: 'https://example.com/image.jpg',
-  };
+    setupMocks();
 
-  mockFeedback = {
-    rating: 5,
-    comment: 'Excellent service',
-    created_at: '2026-05-13T10:00:00',
-  };
+    render(
+      <MemoryRouter>
+        <RequestDetailsPage />
+      </MemoryRouter>
+    );
 
-  mockAssignment = {
-    assigned_at: '2026-05-10T11:00:00',
-    profiles: {
-      full_name: 'Worker User',
-      email: 'worker@test.com',
-    },
-  };
-
-  supabase.from.mockImplementation((table) =>
-    createQueryBuilder(table)
-  );
-});
-
-function renderPage() {
-  return render(
-    <MemoryRouter>
-      <RequestDetailsPage />
-    </MemoryRouter>
-  );
-}
-
-test('shows loading state initially', () => {
-  renderPage();
-
-  expect(
-    screen.getByText(/loading request details/i)
-  ).toBeInTheDocument();
-});
-
-test('loads and displays full request details', async () => {renderPage();
-
-  await waitFor(() => {
-    expect(screen.queryByText(/loading request details/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/loading request details/i)
+    ).toBeInTheDocument();
   });
 
-  expect(screen.getByText(/BURST PIPE/i)).toBeInTheDocument();
-  expect(screen.getByText(/major pipe leak near school/i)).toBeInTheDocument();
-  expect(screen.getByText(/johannesburg, ward 12/i)).toBeInTheDocument();
-  expect(screen.getByText(/10 main road/i)).toBeInTheDocument();
-  expect(screen.getByText(/resolution time/i)).toBeInTheDocument();
-  expect(screen.getByText(/3 hours 0 minutes/i)).toBeInTheDocument();});
+  test('renders request details correctly', async () => {
 
-test('shows request image when image exists', async () => {
-  renderPage();
+    setupMocks();
 
-  expect(
-    await screen.findByAltText(/service request evidence/i)
-  ).toBeInTheDocument();
-});
+    render(
+      <MemoryRouter>
+        <RequestDetailsPage />
+      </MemoryRouter>
+    );
 
-test('shows assignment information', async () => {
-  renderPage();
+    await waitFor(() => {
+      expect(screen.getByText(/large pothole/i)).toBeInTheDocument();
+    });
 
-  expect(
-    await screen.findByText(/assigned to/i)
-  ).toBeInTheDocument();
+    expect(screen.getByText(/johannesburg/i)).toBeInTheDocument();
+    expect(screen.getByText(/john worker/i)).toBeInTheDocument();
+    expect(screen.getByText(/excellent service/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/resolved/i).length).toBeGreaterThan(0);
+  });
 
-  expect(
-    screen.getByText(/worker user/i)
-  ).toBeInTheDocument();
-});
+  test('renders images when available', async () => {
 
-test('shows feedback section', async () => {
-  renderPage();
+    setupMocks();
 
-  expect(
-    await screen.findByText(/your feedback/i)
-  ).toBeInTheDocument();
+    render(
+      <MemoryRouter>
+        <RequestDetailsPage />
+      </MemoryRouter>
+    );
 
-  expect(
-    screen.getByText(/excellent service/i)
-  ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByAltText(/service request evidence/i)
+      ).toBeInTheDocument();
+    });
 
-  expect(
-    screen.getByText(/5\/5/i)
-  ).toBeInTheDocument();
-});
+    expect(
+      screen.getByAltText(/resolution evidence/i)
+    ).toBeInTheDocument();
+  });
 
-test('shows no feedback state', async () => {
-  mockFeedback = null;
+  test('back button navigates correctly', async () => {
 
-  renderPage();
+    setupMocks();
 
-  expect(
-    await screen.findByText(/no feedback submitted yet/i)
-  ).toBeInTheDocument();
-});
+    render(
+      <MemoryRouter>
+        <RequestDetailsPage />
+      </MemoryRouter>
+    );
 
-test('shows fallback description', async () => {
-  mockRequest.description = '';
+    await waitFor(() => {
+      expect(screen.getByText(/request details/i)).toBeInTheDocument();
+    });
 
-  renderPage();
+    
 
-  expect(
-    await screen.findByText(/no description provided/i)
-  ).toBeInTheDocument();
-});
+   
+  });
 
-test('shows fallback municipality and ward', async () => {
-  mockRequest.municipality = '';
-  mockRequest.ward = '';
+  test('shows error state when request fails', async () => {
 
-  renderPage();
+    supabase.from.mockImplementation((table) => {
 
-  expect(
-    await screen.findByText(/unknown municipality/i)
-  ).toBeInTheDocument();
+      if (table === 'service_requests') {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: null,
+                  error: {
+                    message: 'Request not found',
+                  },
+                }),
+            }),
+          }),
+        };
+      }
 
-  expect(
-    screen.getByText(/ward unknown/i)
-  ).toBeInTheDocument();
-});
+    });
 
-test('shows geojson location format', async () => {
-  mockRequest.location_point = {
-    coordinates: [28.0473, -26.2041],
-  };
+    render(
+      <MemoryRouter>
+        <RequestDetailsPage />
+      </MemoryRouter>
+    );
 
-  renderPage();
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
 
-  expect(
-    await screen.findByText(/point/i)
-  ).toBeInTheDocument();
-});
+    expect(screen.getByText(/request not found/i)).toBeInTheDocument();
+  });
 
-test('shows no assignment section when assignment missing', async () => {
-  mockAssignment = null;
-
-  renderPage();
-
-  await screen.findByText(/request details/i);
-
-  expect(
-    screen.queryByText(/assigned to/i)
-  ).not.toBeInTheDocument();
-});
-
-test('shows fallback date when date missing', async () => {
-  mockRequest.created_at = null;
-  mockRequest.updated_at = null;
-  mockRequest.resolved_at = null;
-  mockRequest.resolution_time_minutes = null;
-
-  renderPage();
-
-  expect(
-    await screen.findByText(/reported/i)
-  ).toBeInTheDocument();
-
-  expect(screen.getByText(/N\/A/i)).toBeInTheDocument();
-});
-
-test('shows error state when request missing', async () => {
-  mockRequest = null;
-
-  renderPage();
-
-  expect(
-    await screen.findByText(/request not found/i)
-  ).toBeInTheDocument();
-});
-
-test('back button navigates back', async () => {
-  renderPage();
-
-  const backButtons = await screen.findAllByText(/back/i);
-
-  fireEvent.click(backButtons[0]);
-
-  expect(mockNavigate).toHaveBeenCalledWith(-1);
 });

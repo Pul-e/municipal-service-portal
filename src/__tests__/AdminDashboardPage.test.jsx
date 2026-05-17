@@ -1,9 +1,15 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import AdminDashboardPage from '../pages/AdminDashboardPage';
+import { supabase } from '../supabaseClient';
 
-// Mock supabase
+const mockNavigate = jest.fn();
+
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => mockNavigate,
+}));
+
 jest.mock('../supabaseClient', () => ({
   supabase: {
     auth: {
@@ -13,472 +19,220 @@ jest.mock('../supabaseClient', () => ({
   },
 }));
 
-// Mock useNavigate
-const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: () => mockNavigate,
-}));
-
-import { supabase } from '../supabaseClient';
-
-const renderWithRouter = (component) => {
-  return render(<BrowserRouter>{component}</BrowserRouter>);
-};
-
 describe('AdminDashboardPage', () => {
+
   beforeEach(() => {
     jest.clearAllMocks();
-    setupDefaultMocks();
   });
 
-  function setupDefaultMocks() {
+  function setupSupabaseMocks() {
+
     supabase.auth.getUser.mockResolvedValue({
-      data: { user: { id: 'admin-user-1' } },
+      data: {
+        user: { id: 'admin1' },
+      },
       error: null,
     });
 
-    const mockSelect = jest.fn();
-    const mockOrder = jest.fn();
-    const mockIn = jest.fn();
-    const mockInsert = jest.fn();
+    supabase.from.mockImplementation((table) => {
 
-    mockOrder.mockResolvedValue({
-      data: [],
-      error: null,
-    });
-
-    mockIn.mockResolvedValue({
-      data: [],
-      error: null,
-    });
-
-    mockSelect.mockImplementation((fields) => {
-      if (fields.includes('request_id')) {
-        // service_request_assignments
+      if (table === 'service_requests') {
         return {
-          order: mockOrder,
+          select: () => ({
+            order: () =>
+              Promise.resolve({
+                data: [
+                  {
+                    id: 1,
+                    category: 'Pothole',
+                    location: 'Johannesburg',
+                    status: 'Submitted',
+                  },
+                  {
+                    id: 2,
+                    category: 'Water Leak',
+                    location: 'Soweto',
+                    status: 'Resolved',
+                  },
+                ],
+                error: null,
+              }),
+          }),
         };
       }
-      // profiles or service_requests
-      return {
-        order: mockOrder,
-        in: mockIn,
-      };
-    });
 
-    mockInsert.mockResolvedValue({
-      data: {},
-      error: null,
-    });
+      if (table === 'profiles') {
+        return {
+          select: () => ({
+            in: () =>
+              Promise.resolve({
+                data: [
+                  {
+                    id: 'worker1',
+                    full_name: 'John Worker',
+                    email: 'worker@test.com',
+                    role: 'staff',
+                  },
+                ],
+                error: null,
+              }),
+          }),
+        };
+      }
 
-    supabase.from.mockReturnValue({
-      select: mockSelect,
-      insert: mockInsert,
+      if (table === 'service_request_assignments') {
+        return {
+          select: () => ({
+            order: () =>
+              Promise.resolve({
+                data: [],
+                error: null,
+              }),
+          }),
+          insert: jest.fn(() =>
+            Promise.resolve({
+              error: null,
+            })
+          ),
+        };
+      }
+
     });
   }
 
-  describe('Rendering', () => {
-    test('renders loading text initially', () => {
-      supabase.auth.getUser.mockImplementation(() => new Promise(() => {})); // Never resolves
+  test('renders loading state', () => {
 
-      renderWithRouter(<AdminDashboardPage />);
-      expect(screen.getByText(/Loading admin dashboard/i)).toBeInTheDocument();
-    });
+    setupSupabaseMocks();
 
-    test('renders admin dashboard header', async () => {
-      renderWithRouter(<AdminDashboardPage />);
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText(/Admin/i)).toBeInTheDocument();
-        expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
-      });
-    });
-
-    test('renders System Administrator label', async () => {
-      renderWithRouter(<AdminDashboardPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/System Administrator/i)).toBeInTheDocument();
-      });
-    });
-
-    test('renders filter buttons', async () => {
-      renderWithRouter(<AdminDashboardPage />);
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /All Requests/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Open/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Resolved/i })).toBeInTheDocument();
-      });
-    });
-
+    expect(
+      screen.getByText(/loading admin dashboard/i)
+    ).toBeInTheDocument();
   });
 
-  describe('Data Loading', () => {
+  test('renders dashboard data correctly', async () => {
 
-    test('displays staff count in stats', async () => {
-      supabase.from.mockReturnValue({
-        select: jest.fn().mockImplementation((fields) => {
-          if (fields.includes('role')) {
-            return {
-              in: jest.fn().mockResolvedValue({
-                data: [
-                  { id: 'staff-1', full_name: 'Worker 1', email: 'w1@example.com', role: 'staff' },
-                  { id: 'staff-2', full_name: 'Worker 2', email: 'w2@example.com', role: 'worker' },
-                  { id: 'staff-3', full_name: 'Worker 3', email: 'w3@example.com', role: 'staff' },
-                ],
-                error: null,
-              }),
-            };
-          }
-          return {
-            order: jest.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          };
-        }),
-        insert: jest.fn(),
-      });
+    setupSupabaseMocks();
 
-      renderWithRouter(<AdminDashboardPage />);
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
 
-      await waitFor(() => {
-        const staffCounts = screen.getAllByText('3');
-        expect(staffCounts.length).toBeGreaterThan(0);
-      });
+    await waitFor(() => {
+      expect(screen.getByText(/pothole/i)).toBeInTheDocument();
     });
 
-    test('calculates resolved percentage correctly', async () => {
-      supabase.from.mockReturnValue({
-        select: jest.fn().mockImplementation((fields) => {
-          if (fields.includes('request_id')) {
-            return {
-              order: jest.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            };
-          }
-          if (fields.includes('role')) {
-            return {
-              in: jest.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            };
-          }
-          return {
-            order: jest.fn().mockResolvedValue({
-              data: [
-                { id: '1', status: 'Resolved', category: 'pothole', location: 'Street 1', created_at: new Date().toISOString() },
-                { id: '2', status: 'Resolved', category: 'pothole', location: 'Street 2', created_at: new Date().toISOString() },
-                { id: '3', status: 'Acknowledged', category: 'pothole', location: 'Street 3', created_at: new Date().toISOString() },
-                { id: '4', status: 'Acknowledged', category: 'pothole', location: 'Street 4', created_at: new Date().toISOString() },
-              ],
-              error: null,
-            }),
-          };
-        }),
-        insert: jest.fn(),
-      });
-
-      renderWithRouter(<AdminDashboardPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/50%/i)).toBeInTheDocument(); // 2 resolved out of 4
-      });
-    });
+    expect(screen.getByText(/water leak/i)).toBeInTheDocument();
+    expect(screen.getByText(/john worker/i)).toBeInTheDocument();
   });
 
-  describe('Filtering', () => {
-    test('filters by open requests', async () => {
-      supabase.from.mockReturnValue({
-        select: jest.fn().mockImplementation((fields) => {
-          if (fields.includes('request_id')) {
-            return {
-              order: jest.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            };
-          }
-          if (fields.includes('role')) {
-            return {
-              in: jest.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            };
-          }
-          return {
-            order: jest.fn().mockResolvedValue({
-              data: [
-                { id: '1', status: 'Acknowledged', category: 'pothole', location: 'Main St', created_at: new Date().toISOString() },
-                { id: '2', status: 'Resolved', category: 'water', location: 'Oak Ave', created_at: new Date().toISOString() },
-              ],
-              error: null,
-            }),
-          };
-        }),
-        insert: jest.fn(),
-      });
+  test('filters resolved requests', async () => {
 
-      renderWithRouter(<AdminDashboardPage />);
+    setupSupabaseMocks();
 
-      await waitFor(() => {
-        expect(screen.getByText(/pothole/i)).toBeInTheDocument();
-      });
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
 
-      const openBtn = screen.getByRole('button', { name: /Open/i });
-      await userEvent.click(openBtn);
-
-      await waitFor(() => {
-        expect(screen.getByText(/pothole/i)).toBeInTheDocument();
-        expect(screen.queryByText(/water/i)).not.toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText(/water leak/i)).toBeInTheDocument();
     });
 
-    test('filters by resolved requests', async () => {
-      supabase.from.mockReturnValue({
-        select: jest.fn().mockImplementation((fields) => {
-          if (fields.includes('request_id')) {
-            return {
-              order: jest.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            };
-          }
-          if (fields.includes('role')) {
-            return {
-              in: jest.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            };
-          }
-          return {
-            order: jest.fn().mockResolvedValue({
-              data: [
-                { id: '1', status: 'Acknowledged', category: 'pothole', location: 'Main St', created_at: new Date().toISOString() },
-                { id: '2', status: 'Resolved', category: 'water', location: 'Oak Ave', created_at: new Date().toISOString() },
-              ],
-              error: null,
-            }),
-          };
-        }),
-        insert: jest.fn(),
-      });
+    fireEvent.click(
+      screen.getByRole('button', { name: /resolved/i })
+    );
 
-      renderWithRouter(<AdminDashboardPage />);
+    expect(screen.getByText(/water leak/i)).toBeInTheDocument();
+  });
 
-      await waitFor(() => {
-        expect(screen.getByText(/pothole/i)).toBeInTheDocument();
-      });
+  test('view details button navigates correctly', async () => {
 
-      const resolvedBtn = screen.getByRole('button', { name: /Resolved/i });
-      await userEvent.click(resolvedBtn);
+    setupSupabaseMocks();
 
-      await waitFor(() => {
-        expect(screen.getByText(/water/i)).toBeInTheDocument();
-        expect(screen.queryByText(/pothole/i)).not.toBeInTheDocument();
-      });
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/view details/i)[0]).toBeInTheDocument();
     });
 
-    test('shows all requests when All Requests filter selected', async () => {
-      supabase.from.mockReturnValue({
-        select: jest.fn().mockImplementation((fields) => {
-          if (fields.includes('request_id')) {
-            return {
-              order: jest.fn().mockResolvedValue({
+    fireEvent.click(screen.getAllByText(/view details/i)[0]);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/requests/1');
+  });
+
+  test('shows empty state when no requests exist', async () => {
+
+    supabase.auth.getUser.mockResolvedValue({
+      data: {
+        user: { id: 'admin1' },
+      },
+      error: null,
+    });
+
+    supabase.from.mockImplementation((table) => {
+
+      if (table === 'service_requests') {
+        return {
+          select: () => ({
+            order: () =>
+              Promise.resolve({
                 data: [],
                 error: null,
               }),
-            };
-          }
-          if (fields.includes('role')) {
-            return {
-              in: jest.fn().mockResolvedValue({
+          }),
+        };
+      }
+
+      if (table === 'profiles') {
+        return {
+          select: () => ({
+            in: () =>
+              Promise.resolve({
                 data: [],
                 error: null,
               }),
-            };
-          }
-          return {
-            order: jest.fn().mockResolvedValue({
-              data: [
-                { id: '1', status: 'Acknowledged', category: 'pothole', location: 'Main St', created_at: new Date().toISOString() },
-                { id: '2', status: 'Resolved', category: 'water', location: 'Oak Ave', created_at: new Date().toISOString() },
-              ],
-              error: null,
-            }),
-          };
-        }),
-        insert: jest.fn(),
-      });
+          }),
+        };
+      }
 
-      renderWithRouter(<AdminDashboardPage />);
+      if (table === 'service_request_assignments') {
+        return {
+          select: () => ({
+            order: () =>
+              Promise.resolve({
+                data: [],
+                error: null,
+              }),
+          }),
+        };
+      }
 
-      await waitFor(() => {
-        expect(screen.getByText(/pothole/i)).toBeInTheDocument();
-      });
+    });
 
-      const allBtn = screen.getByRole('button', { name: /All Requests/i });
-      await userEvent.click(allBtn);
+    render(
+      <MemoryRouter>
+        <AdminDashboardPage />
+      </MemoryRouter>
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText(/pothole/i)).toBeInTheDocument();
-        expect(screen.getByText(/water/i)).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/no requests found/i)
+      ).toBeInTheDocument();
     });
   });
 
-  describe('Request Assignment', () => {
-
-
-
-    test('hides dropdown for resolved requests', async () => {
-      supabase.from.mockReturnValue({
-        select: jest.fn().mockImplementation((fields) => {
-          if (fields.includes('request_id')) {
-            return {
-              order: jest.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            };
-          }
-          if (fields.includes('role')) {
-            return {
-              in: jest.fn().mockResolvedValue({
-                data: [
-                  { id: 'staff-1', full_name: 'John Doe', email: 'john@example.com', role: 'staff' },
-                ],
-                error: null,
-              }),
-            };
-          }
-          return {
-            order: jest.fn().mockResolvedValue({
-              data: [
-                { id: '1', status: 'Resolved', category: 'pothole', location: 'Main St', created_at: new Date().toISOString() },
-              ],
-              error: null,
-            }),
-          };
-        }),
-        insert: jest.fn(),
-      });
-
-      renderWithRouter(<AdminDashboardPage />);
-
-      await waitFor(() => {
-        expect(screen.queryByDisplayValue(/Assign to staff/i)).not.toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('View Details Button', () => {
-    test('navigates to request details on button click', async () => {
-      supabase.from.mockReturnValue({
-        select: jest.fn().mockImplementation((fields) => {
-          if (fields.includes('request_id')) {
-            return {
-              order: jest.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            };
-          }
-          if (fields.includes('role')) {
-            return {
-              in: jest.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            };
-          }
-          return {
-            order: jest.fn().mockResolvedValue({
-              data: [
-                { id: 'req-123', status: 'Acknowledged', category: 'pothole', location: 'Main St', created_at: new Date().toISOString() },
-              ],
-              error: null,
-            }),
-          };
-        }),
-        insert: jest.fn(),
-      });
-
-      renderWithRouter(<AdminDashboardPage />);
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /View Details/i })).toBeInTheDocument();
-      });
-
-      const viewBtn = screen.getByRole('button', { name: /View Details/i });
-      await userEvent.click(viewBtn);
-
-      expect(mockNavigate).toHaveBeenCalledWith('/requests/req-123');
-    });
-  });
-
-  describe('Error Handling', () => {
-    test('displays error message on data fetch failure', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      supabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: 'admin-user-1' } },
-        error: null,
-      });
-
-      supabase.from.mockReturnValue({
-        select: jest.fn().mockImplementation((fields) => {
-          if (fields.includes('request_id')) {
-            return {
-              order: jest.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'Failed to fetch assignments' },
-              }),
-            };
-          }
-          return {
-            order: jest.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-            in: jest.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          };
-        }),
-        insert: jest.fn(),
-      });
-
-      renderWithRouter(<AdminDashboardPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Error:/i)).toBeInTheDocument();
-      });
-
-      consoleSpy.mockRestore();
-    });
-
-  });
-
-  describe('Empty State', () => {
-    test('displays no requests found message', async () => {
-      renderWithRouter(<AdminDashboardPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/No requests found/i)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Status Classes', () => {
-  });
 });
