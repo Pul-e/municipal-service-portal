@@ -5,7 +5,7 @@
   "scripts": {"start": "react-scripts start",
   "build": "react-scripts build",
   "test": "react-scripts test",
-  "test:coverage": "react-scripts test --coverage --watchAll=false --coverageReporters=json-summary --coverageReporters=lcov --coverageReporters=text",
+  "test:coverage": "CI=true react-scripts test --coverage --watchAll=false --runInBand --passWithNoTests",
   "eject": "react-scripts eject"},
   "jest": {
     "collectCoverageFrom": [

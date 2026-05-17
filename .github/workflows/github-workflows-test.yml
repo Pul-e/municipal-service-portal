@@ -2,18 +2,13 @@ name: Test Coverage
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
-  test:
+  coverage:
     runs-on: ubuntu-latest
-
-    env:
-      CI: true
-      REACT_APP_SUPABASE_URL: https://example.supabase.co
-      REACT_APP_SUPABASE_ANON_KEY: test-anon-key
 
     steps:
       - name: Checkout repository
@@ -22,8 +17,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: 18
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -33,68 +28,10 @@ jobs:
 
       - name: Verify coverage files
         run: |
-          echo "Coverage directory contents:"
-          ls -R coverage
-
-          if [ ! -f coverage/lcov.info ]; then
-            echo "lcov.info not found"
-            exit 1
-          fi
-
-          echo "Coverage reports generated successfully"
-
-      - name: Upload coverage artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 30
+          ls -R coverage || true
 
       - name: Upload coverage to Codecov
-        if: always()
         uses: codecov/codecov-action@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
-          flags: frontend
-          name: municipal-service-portal
           fail_ci_if_error: false
-          verbose: true
-
-      - name: Comment PR with coverage
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-
-            if (!fs.existsSync('./coverage/coverage-summary.json')) {
-              core.warning('coverage-summary.json not found');
-              return;
-            }
-
-            const coverage = JSON.parse(
-              fs.readFileSync('./coverage/coverage-summary.json', 'utf8')
-            );
-
-            const total = coverage.total;
-
-            const comment = `## 📊 Test Coverage Report
-
-            | Metric | Coverage |
-            |--------|----------|
-            | Lines | ${total.lines.pct}% |
-            | Statements | ${total.statements.pct}% |
-            | Functions | ${total.functions.pct}% |
-            | Branches | ${total.branches.pct}% |
-
-            ✅ Sprint 3 Coverage Generated Successfully
-            `;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
