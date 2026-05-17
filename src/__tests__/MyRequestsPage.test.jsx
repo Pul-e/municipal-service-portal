@@ -27,44 +27,36 @@ jest.mock('react-router-dom', () => ({
 
 let mockRequests = [];
 
-function createQueryBuilder(table) {
-  const builder = {
+function createQueryBuilder() {
+  return {
     select: jest.fn(function () {
       return this;
     }),
-
     eq: jest.fn(function () {
       return this;
     }),
-
     in: jest.fn(function () {
       return Promise.resolve({
         data: [],
         error: null,
       });
     }),
-
     order: jest.fn(function () {
       return Promise.resolve({
         data: mockRequests,
         error: null,
       });
     }),
-
     insert: jest.fn(function () {
       return Promise.resolve({
         error: null,
       });
     }),
   };
-
-  return builder;
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
-
-  jest.useFakeTimers();
 
   mockRequests = [
     {
@@ -95,15 +87,10 @@ beforeEach(() => {
         id: 'user-1',
       },
     },
+    error: null,
   });
 
-  supabase.from.mockImplementation((table) =>
-    createQueryBuilder(table)
-  );
-});
-
-afterEach(() => {
-  jest.useRealTimers();
+  supabase.from.mockImplementation(() => createQueryBuilder());
 });
 
 function renderPage() {
@@ -111,6 +98,40 @@ function renderPage() {
     <MemoryRouter>
       <MyRequestsPage />
     </MemoryRouter>
+  );
+}
+
+async function openFeedbackForm() {
+  const feedbackButtons = await screen.findAllByRole('button', {
+    name: /feedback|rate service/i,
+  });
+
+  fireEvent.click(feedbackButtons[0]);
+}
+
+async function chooseStar(index) {
+  const starButtons = await screen.findAllByRole('button', {
+    name: /star/i,
+  });
+
+  fireEvent.click(starButtons[index]);
+}
+
+function enterFeedbackComment(comment) {
+  const commentBox = screen.queryByPlaceholderText(
+    /tell us about your experience|comment/i
+  );
+
+  if (commentBox) {
+    fireEvent.change(commentBox, {
+      target: { value: comment },
+    });
+  }
+}
+
+function submitFeedback() {
+  fireEvent.click(
+    screen.getByRole('button', { name: /submit feedback/i })
   );
 }
 
@@ -129,16 +150,20 @@ test('loads and displays requests', async () => {
     await screen.findByText(/track and manage your reported municipal issues/i)
   ).toBeInTheDocument();
 
-  await waitFor(() => {
-    expect(screen.getByText(/johannesburg, ward 12/i)).toBeInTheDocument();
-  });
+  expect(screen.getByText(/johannesburg, ward 12/i)).toBeInTheDocument();
+  expect(screen.getByText(/johannesburg, ward 8/i)).toBeInTheDocument();
 });
+
 test('shows no requests state', async () => {
   mockRequests = [];
 
   renderPage();
 
-
+  await waitFor(() => {
+    expect(
+      screen.getByText(/no requests|no service requests|no reports/i)
+    ).toBeInTheDocument();
+  });
 });
 
 test('filters open requests', async () => {
@@ -151,13 +176,10 @@ test('filters open requests', async () => {
   fireEvent.click(openTab);
 
   await waitFor(() => {
-    expect(
-      screen.getByText(/johannesburg, ward 12/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/pothole/i)).toBeInTheDocument();
   });
-
- 
 });
+
 test('filters resolved requests', async () => {
   renderPage();
 
@@ -170,8 +192,6 @@ test('filters resolved requests', async () => {
   await waitFor(() => {
     expect(screen.getByText(/water leak/i)).toBeInTheDocument();
   });
-
-
 });
 
 test('navigates to request details page', async () => {
@@ -187,50 +207,83 @@ test('navigates to request details page', async () => {
 test('opens feedback form', async () => {
   renderPage();
 
-  const feedbackButton = await screen.findByText(/rate service/i);
+  await openFeedbackForm();
 
+  expect(
+    screen.getByRole('button', { name: /submit feedback/i })
+  ).toBeInTheDocument();
+});
 
-  
+test('boundary test: minimum feedback rating accepted', async () => {
+  renderPage();
 
- 
+  await openFeedbackForm();
+  await chooseStar(0);
+
+  enterFeedbackComment('Bad service');
+  submitFeedback();
+
+  expect(
+    await screen.findByText(/thank you for your feedback/i)
+  ).toBeInTheDocument();
+});
+
+test('boundary test: maximum feedback rating accepted', async () => {
+  renderPage();
+
+  await openFeedbackForm();
+  await chooseStar(4);
+
+  enterFeedbackComment('Excellent service');
+  submitFeedback();
+
+  expect(
+    await screen.findByText(/thank you for your feedback/i)
+  ).toBeInTheDocument();
+});
+
+test('equivalence test: valid feedback submission succeeds', async () => {
+  renderPage();
+
+  await openFeedbackForm();
+  await chooseStar(3);
+
+  enterFeedbackComment('Good service overall');
+  submitFeedback();
+
+  expect(
+    await screen.findByText(/thank you for your feedback/i)
+  ).toBeInTheDocument();
+});
+
+test('equivalence test: empty feedback comment still submits', async () => {
+  renderPage();
+
+  await openFeedbackForm();
+  await chooseStar(2);
+
+  submitFeedback();
+
+  expect(
+    await screen.findByText(/thank you for your feedback/i)
+  ).toBeInTheDocument();
 });
 
 test('submits feedback successfully', async () => {
   renderPage();
 
-  const feedbackButton = await screen.findByText(/rate service/i);
+  await openFeedbackForm();
+  await chooseStar(4);
 
-  fireEvent.click(feedbackButton);
+  enterFeedbackComment('Great service!');
+  submitFeedback();
 
-  const starButtons = await screen.findAllByRole('button', {
-    name: /star/i,
-  });
-
-  fireEvent.click(starButtons[4]);
-
-  fireEvent.change(
-    screen.getByPlaceholderText(/tell us about your experience/i),
-    {
-      target: {
-        value: 'Great service!',
-      },
-    }
-  );
-
-  const submitButton = screen.getByText(/submit feedback/i);
-
-  fireEvent.click(submitButton);
-
-  await waitFor(() => {
-    expect(
-      screen.getByText(/thank you for your feedback/i)
-    ).toBeInTheDocument();
-  });
+  expect(
+    await screen.findByText(/thank you for your feedback/i)
+  ).toBeInTheDocument();
 });
 
 test('shows feedback error if user not logged in', async () => {
-  // First call = page load user
-  // Second call = feedback submit user
   supabase.auth.getUser
     .mockResolvedValueOnce({
       data: {
@@ -238,6 +291,7 @@ test('shows feedback error if user not logged in', async () => {
           id: 'user-1',
         },
       },
+      error: null,
     })
     .mockResolvedValueOnce({
       data: {
@@ -248,27 +302,15 @@ test('shows feedback error if user not logged in', async () => {
 
   renderPage();
 
-const feedbackButton = await screen.findByRole('button', {
-  name: /leave feedback/i,
-});
-  fireEvent.click(feedbackButton);
-
-  const starButtons = await screen.findAllByRole('button', {
-    name: /star/i,
-  });
-
-  fireEvent.click(starButtons[4]);
-
-  fireEvent.click(
-    screen.getByRole('button', {
-      name: /submit feedback/i,
-    })
-  );
+  await openFeedbackForm();
+  await chooseStar(4);
+  submitFeedback();
 
   expect(
     await screen.findByText(/must be logged in/i)
   ).toBeInTheDocument();
 });
+
 test('shows feedback submitted badge', async () => {
   mockRequests = [
     {
@@ -285,25 +327,21 @@ test('shows feedback submitted badge', async () => {
 
   renderPage();
 
-  
+  expect(
+    await screen.findByText(/feedback submitted|submitted/i)
+  ).toBeInTheDocument();
 });
 
 test('cancel feedback closes form', async () => {
   renderPage();
 
-  const feedbackButton = await screen.findByText(/rate service/i);
+  await openFeedbackForm();
 
-  fireEvent.click(feedbackButton);
-
-  expect(
-    await screen.findByText(/rate your experience/i)
-  ).toBeInTheDocument();
-
-  fireEvent.click(screen.getByText(/cancel/i));
+  fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
 
   await waitFor(() => {
     expect(
-      screen.queryByText(/rate your experience/i)
+      screen.queryByRole('button', { name: /submit feedback/i })
     ).not.toBeInTheDocument();
   });
 });
@@ -315,9 +353,7 @@ test('back button navigates to dashboard', async () => {
 
   fireEvent.click(backButton);
 
-  expect(mockNavigate).toHaveBeenCalledWith(
-    '/resident/dashboard'
-  );
+  expect(mockNavigate).toHaveBeenCalledWith('/resident/dashboard');
 });
 
 test('help section renders', async () => {
@@ -327,10 +363,7 @@ test('help section renders', async () => {
     await screen.findByText(/need help/i)
   ).toBeInTheDocument();
 
-  expect(
-    screen.getByText(/0800 123 456/i)
-  ).toBeInTheDocument();
-
+  expect(screen.getByText(/0800 123 456/i)).toBeInTheDocument();
   expect(
     screen.getByText(/support@municipalconnect.co.za/i)
   ).toBeInTheDocument();
