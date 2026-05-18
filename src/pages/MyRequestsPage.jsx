@@ -33,17 +33,39 @@ function MyRequestsPage() {
         return;
       }
 
-      const { data, error } = await supabase
+      // Fetch all requests
+      const { data: requestsData, error: requestsError } = await supabase
         .from('service_requests')
         .select('*, municipality, ward')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching requests:', error.message);
-      } else {
-        setRequests(data || []);
+      if (requestsError) {
+        console.error('Error fetching requests:', requestsError.message);
+        setLoading(false);
+        return;
       }
+
+      // Fetch all feedback submitted by this user (to know which requests already have feedback)
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from('feedback')
+        .select('request_id')
+        .eq('user_id', user.id);
+
+      if (feedbackError) {
+        console.error('Error fetching feedback:', feedbackError.message);
+      }
+
+      // Create a Set of request IDs that already have feedback (for O(1) lookup)
+      const feedbackRequestIds = new Set(feedbackData?.map(f => f.request_id) || []);
+
+      // Mark requests that already have feedback
+      const requestsWithFeedback = (requestsData || []).map(req => ({
+        ...req,
+        feedback_submitted: feedbackRequestIds.has(req.id)
+      }));
+
+      setRequests(requestsWithFeedback);
       setLoading(false);
     }
 
@@ -73,14 +95,15 @@ function MyRequestsPage() {
 
       if (insertError) throw insertError;
 
+      // Update local state to mark feedback as submitted
+      setRequests(requests.map(req =>
+        req.id === requestId ? { ...req, feedback_submitted: true } : req
+      ));
+
       setFeedbackSuccess(requestId);
       setFeedbackOpen(null);
       setRating(0);
       setComment('');
-
-      setRequests(requests.map(req =>
-        req.id === requestId ? { ...req, feedback_submitted: true } : req
-      ));
 
       setTimeout(() => setFeedbackSuccess(null), 3000);
       
