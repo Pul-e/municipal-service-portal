@@ -330,3 +330,113 @@ test('shows insert error if report submission fails', async () => {
     await screen.findByText(/failed to submit report/i)
   ).toBeInTheDocument();
 });
+
+test('equivalence test: valid minimum description submits successfully', async () => {
+  renderPage();
+
+  fireEvent.change(screen.getByLabelText(/issue category/i), {
+    target: { value: 'pothole' },
+  });
+
+  fireEvent.change(screen.getByLabelText(/description/i), {
+    target: { value: 'Road' },
+  });
+
+  fireEvent.click(screen.getByText(/select mock location/i));
+
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: /submit report/i,
+    })
+  );
+
+  await waitFor(() => {
+    expect(global.alert).toHaveBeenCalledWith(
+      'Report submitted successfully!'
+    );
+  });
+});
+
+test('boundary test: very long description handled correctly', async () => {
+  renderPage();
+
+  const longDescription = 'A'.repeat(1000);
+
+  fireEvent.change(screen.getByLabelText(/issue category/i), {
+    target: { value: 'power-outage' },
+  });
+
+  fireEvent.change(screen.getByLabelText(/description/i), {
+    target: { value: longDescription },
+  });
+
+  fireEvent.click(screen.getByText(/select mock location/i));
+
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: /submit report/i,
+    })
+  );
+
+  await waitFor(() => {
+    expect(global.alert).toHaveBeenCalled();
+  });
+});
+
+test('equivalence test: empty category prevents submission', async () => {
+  renderPage();
+
+  fireEvent.change(screen.getByLabelText(/description/i), {
+    target: { value: 'Broken street light' },
+  });
+
+  fireEvent.click(screen.getByText(/select mock location/i));
+
+  const submitButton = screen.getByRole('button', {
+    name: /submit report/i,
+  });
+
+  fireEvent.click(submitButton);
+
+  expect(global.alert).not.toHaveBeenCalled();
+});
+
+test('boundary test: empty description prevents submission', async () => {
+  renderPage();
+
+  fireEvent.change(screen.getByLabelText(/issue category/i), {
+    target: { value: 'street-light' },
+  });
+
+  fireEvent.click(screen.getByText(/select mock location/i));
+
+  const submitButton = screen.getByRole('button', {
+    name: /submit report/i,
+  });
+
+  fireEvent.click(submitButton);
+
+  expect(global.alert).not.toHaveBeenCalled();
+});
+
+test('boundary test: image exactly 5MB accepted', async () => {
+  renderPage();
+
+  const file = new File(['image'], 'photo.png', {
+    type: 'image/png',
+  });
+
+  Object.defineProperty(file, 'size', {
+    value: 5 * 1024 * 1024,
+  });
+
+  const input = screen.getByLabelText(/upload photo/i);
+
+  fireEvent.change(input, {
+    target: {
+      files: [file],
+    },
+  });
+
+  expect(await screen.findByAltText(/preview/i)).toBeInTheDocument();
+});
