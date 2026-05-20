@@ -33,7 +33,7 @@ function ResidentDashboardPage() {
 
       const { data: requests } = await supabase
         .from('service_requests')
-        .select('*')
+        .select('*, municipality, ward')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -124,7 +124,11 @@ function ResidentDashboardPage() {
                     </h3>
                     <StatusBadge status={req.status} />
                   </header>
-                  <address className="request-location">{req.location || 'No location'}</address>
+                  <address className="request-location">
+                    {req.municipality && req.ward
+                      ? `${req.municipality}, Ward ${req.ward}`
+                      : (req.location || 'Location not specified')}
+                  </address>
                 </article>
               </li>
             ))}
