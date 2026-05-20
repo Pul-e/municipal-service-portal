@@ -28,18 +28,29 @@ function PublicDashboardPage() {
   const [openCount, setOpenCount] = useState(0);
   const [resolvedCount, setResolvedCount] = useState(0);
 
+  const isResolvedAndOld = (req) => {
+  if (req.status !== 'Resolved') return false;
+  if (!req.resolved_at) return false;
+  const resolvedDate = new Date(req.resolved_at);
+  const fiveDaysAgo = new Date();
+  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+  return resolvedDate < fiveDaysAgo;
+};
+
   useEffect(() => {
     async function fetchRequests() {
       const { data, error } = await supabase
         .from('service_requests')
-        .select('id, category, location, status, created_at, municipality, ward')
+        .select('id, category, location, status, created_at, resolved_at, municipality, ward')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (error) {
         console.error('Error fetching requests:', error.message);
       } else {
-        setRequests(data || []);
+        // Filter out resolved reports older than 3 days
+        const filteredData = data.filter(req => !isResolvedAndOld(req));
+        setRequests(filteredData.slice(0, 10));
       }
     }
     fetchRequests();
@@ -104,7 +115,7 @@ function PublicDashboardPage() {
     const fetchReportMarkers = async () => {
       const { data, error } = await supabase
         .from('service_requests')
-        .select('id, status, location_point')
+        .select('id, status, location_point, resolved_at')
         .not('location_point', 'is', null);
 
       if (error) {
@@ -112,7 +123,10 @@ function PublicDashboardPage() {
         return;
       }
 
-      const markers = data
+      // Filter out resolved reports older than 3 days
+      const filteredData = data.filter(req => !isResolvedAndOld(req));
+
+      const markers = filteredData
         .map(req => {
           let lat = null, lng = null;
           if (typeof req.location_point === 'string') {
