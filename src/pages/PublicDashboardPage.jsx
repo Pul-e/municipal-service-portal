@@ -48,7 +48,7 @@ function PublicDashboardPage() {
       if (error) {
         console.error('Error fetching requests:', error.message);
       } else {
-        // Filter out resolved reports older than 3 days
+        // Filter out resolved reports older than 5 days
         const filteredData = data.filter(req => !isResolvedAndOld(req));
         setRequests(filteredData.slice(0, 10));
       }
