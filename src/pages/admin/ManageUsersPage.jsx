@@ -82,7 +82,7 @@ function ManageUsersPage() {
 
   const filteredUsers = users.filter(user => {
     if (filter === 'all') return true;
-    if (filter === 'resident') return user.role === 'user';
+    if (filter === 'residents') return user.role === 'user';
     if (filter === 'workers') return user.role === 'staff';
     return true;
   });
@@ -126,11 +126,11 @@ function ManageUsersPage() {
           </div>
           <div className="stat-card">
             <dt className="stat-label">Residents</dt>
-            <dd className="stat-value">{users.filter(u => u.role === 'resident').length}</dd>
+            <dd className="stat-value">{users.filter(u => u.role === 'user').length}</dd>
           </div>
           <div className="stat-card">
             <dt className="stat-label">Workers</dt>
-            <dd className="stat-value">{users.filter(u => u.role === 'worker').length}</dd>
+            <dd className="stat-value">{users.filter(u => u.role === 'staff').length}</dd>
           </div>
           <div className="stat-card">
             <dt className="stat-label">Admins</dt>
@@ -166,7 +166,7 @@ function ManageUsersPage() {
               className={`filter-tab ${filter === 'residents' ? 'active' : ''}`}
               onClick={() => setFilter('residents')}
             >
-              Residents <span className="count">{users.filter(u => u.role === 'resident').length}</span>
+              Residents <span className="count">{users.filter(u => u.role === 'user').length}</span>
             </button>
           </li>
           <li role="presentation">
@@ -176,7 +176,7 @@ function ManageUsersPage() {
               className={`filter-tab ${filter === 'workers' ? 'active' : ''}`}
               onClick={() => setFilter('workers')}
             >
-              Workers <span className="count">{users.filter(u => u.role === 'worker').length}</span>
+              Workers <span className="count">{users.filter(u => u.role === 'staff').length}</span>
             </button>
           </li>
         </ul>
