@@ -22,7 +22,7 @@ function AdminDashboardPage() {
 
         const { data: requestsData, error: reqError } = await supabase
           .from('service_requests')
-          .select('*')
+          .select('*,  municipality, ward')
           .order('created_at', { ascending: false });
         if (reqError) throw reqError;
 
@@ -204,7 +204,9 @@ function AdminDashboardPage() {
                       <h3>{req.category}</h3>
                     </div>
                     <address className="request-col-location">
-                      {req.location}
+                      {req.municipality && req.ward
+                        ? `${req.municipality}, Ward ${req.ward}`
+                        : (req.location || 'Location not specified')}
                     </address>
                     <div className="request-col-status">
                       <output className={`status-badge ${getStatusClass(req.status)}`}>
