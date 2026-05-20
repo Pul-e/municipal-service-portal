@@ -1029,6 +1029,136 @@ h3 { font-size: 1rem; font-weight: 500; }
 .priority-medium { background: var(--mc-warning-bg); color: var(--mc-warning); border: 1px solid rgba(217,119,6,0.2); }
 .priority-low    { background: var(--mc-success-bg); color: var(--mc-success); border: 1px solid rgba(45,106,79,0.2); }
 
+/* Modal styles for image upload */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.modal-content h3 {
+    margin-bottom: 8px;
+    font-size: 1.25rem;
+}
+
+.modal-subtitle {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 20px;
+}
+
+.modal-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    padding: 32px;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+}
+
+.modal-dropzone:hover {
+    border-color: #10b981;
+}
+
+.modal-dropzone-icon {
+    font-size: 40px;
+    margin-bottom: 8px;
+}
+
+.modal-dropzone-hint {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+.modal-preview {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.modal-icon-success {
+    width: 60px;
+    height: 60px;
+    background: #10b981;
+    color: white;
+    font-size: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.modal-btn-primary {
+    background: #10b981;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.modal-btn-primary:hover {
+    background: #059669;
+}
+
+.modal-btn-secondary {
+    background: #e5e7eb;
+    color: #374151;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.modal-btn-skip {
+    background: none;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.modal-error {
+    color: #dc2626;
+    font-size: 0.75rem;
+    margin-top: 8px;
+}
+
 /* ============================================
    ACTION BUTTONS
    ============================================ */

@@ -2,11 +2,13 @@
   "name": "municipal-service-portal",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {"start": "react-scripts start",
-  "build": "react-scripts build",
-  "test": "react-scripts test",
-  "test:coverage": "CI=true react-scripts test --coverage --watchAll=false --runInBand --passWithNoTests",
-  "eject": "react-scripts eject"},
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "test:coverage": "CI=true react-scripts test --coverage --watchAll=false --runInBand --passWithNoTests",
+    "eject": "react-scripts eject"
+  },
   "jest": {
     "collectCoverageFrom": [
       "src/**/*.{js,jsx}",
@@ -45,6 +47,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
     "leaflet": "^1.9.4",
+    "lucide-react": "^1.16.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-leaflet": "^5.0.0",
