@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
@@ -9,6 +9,44 @@ function SignInPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resolvedThisWeek, setResolvedThisWeek] = useState(null);
+
+    // Get the start date of the current week (Monday)
+  const getStartOfWeek = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If Sunday, go back 6 days to Monday
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - daysToSubtract);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  };
+
+    // Fetch number of issues resolved this week (Mon - Sun)
+  useEffect(() => {
+    async function fetchResolvedThisWeek() {
+      const startOfWeek = getStartOfWeek();
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+      const { count, error } = await supabase
+        .from('service_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Resolved')
+        .gte('resolved_at', startOfWeek.toISOString())
+        .lt('resolved_at', endOfWeek.toISOString());
+
+      if (error) {
+        console.error('Error fetching resolved count:', error);
+        setResolvedThisWeek(null);
+      } else {
+        setResolvedThisWeek(count || 0);
+      }
+    }
+
+    fetchResolvedThisWeek();
+  }, []);
+
 
   const handleEmailSignIn = async (e) => {
     e.preventDefault();
@@ -82,7 +120,7 @@ function SignInPage() {
 
           <div>
             <div className="signin-left-stat">
-              <output className="n">12</output>
+              <output className="n">{resolvedThisWeek !== null ? resolvedThisWeek : '...'}</output>
               <span className="l">Issues resolved this week</span>
             </div>
             <p className="signin-left-tagline">
