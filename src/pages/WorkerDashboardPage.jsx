@@ -13,7 +13,7 @@ function WorkerDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Image upload state: { requestId, file, previewUrl, uploading, uploadError, uploaded }
+    // Image upload state
     const [imageUpload, setImageUpload] = useState(null);
     const fileInputRef = useRef(null);
 
@@ -213,9 +213,10 @@ function WorkerDashboardPage() {
                     uploadError: null,
                     uploaded: false
                 });
+                return; // Don't update status yet - wait for image upload or skip
             }
 
-            if (newStatus === 'Acknowledged' || newStatus === 'In Progress') {
+            if (newStatus === 'In Progress') {
                 updatePayload.assigned = true;
             }
 
@@ -281,8 +282,7 @@ function WorkerDashboardPage() {
         }
     };
 
-    // ── NEW: Image upload handlers ─────────────────────────────────────────
-
+    // Image upload handlers
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -310,14 +310,12 @@ function WorkerDashboardPage() {
             const ext = file.name.split('.').pop();
             const filePath = `resolution-images/${requestId}-${Date.now()}.${ext}`;
 
-            // 1. Upload file to Supabase Storage bucket "request-images"
             const { error: storageError } = await supabase.storage
                 .from('request-images')
                 .upload(filePath, file, { upsert: true });
 
             if (storageError) throw storageError;
 
-            // 2. Get the public URL
             const { data: urlData } = supabase.storage
                 .from('request-images')
                 .getPublicUrl(filePath);
@@ -325,23 +323,27 @@ function WorkerDashboardPage() {
             const publicUrl = urlData?.publicUrl;
             if (!publicUrl) throw new Error('Could not get public URL for uploaded image.');
 
-            // 3. Save URL to the assignment row (matched by request + worker)
-            const { error: assignmentError } = await supabase
-                .from('service_request_assignments')
-                .update({ image_url: publicUrl })
-                .eq('request_id', requestId)
-                .eq('staff_id', user.id);
-
-            if (assignmentError) throw assignmentError;
-
+            // Save URL to service_requests table only
             const { error: requestError } = await supabase
                 .from('service_requests')
-                .update({ resolution_image_url: publicUrl })
+                .update({ 
+                    resolution_image_url: publicUrl,
+                    status: 'Resolved',
+                    resolved_at: new Date().toISOString()
+                })
                 .eq('id', requestId);
 
             if (requestError) throw requestError;
 
             setImageUpload(prev => ({ ...prev, uploading: false, uploaded: true }));
+
+            await Promise.all([
+                fetchAssignedRequests(user.id),
+                fetchUnassignedRequests()
+            ]);
+
+            await sendStatusEmail(requestId, 'Resolved');
+            
         } catch (err) {
             console.error('Image upload error:', err);
             setImageUpload(prev => ({
@@ -352,13 +354,33 @@ function WorkerDashboardPage() {
         }
     };
 
-    const handleDismissUpload = () => {
+    const handleDismissUpload = async () => {
         if (imageUpload?.previewUrl) URL.revokeObjectURL(imageUpload.previewUrl);
+        
+        const { requestId } = imageUpload;
+        
+        if (requestId) {
+            // Mark as resolved without uploading a photo
+            const { error: updateError } = await supabase
+                .from('service_requests')
+                .update({ 
+                    status: 'Resolved',
+                    resolved_at: new Date().toISOString()
+                })
+                .eq('id', requestId);
+            
+            if (!updateError) {
+                await Promise.all([
+                    fetchAssignedRequests(user.id),
+                    fetchUnassignedRequests()
+                ]);
+                await sendStatusEmail(requestId, 'Resolved');
+            }
+        }
+        
         setImageUpload(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
-
-    // ── Render ─────────────────────────────────────────────────────────────
 
     if (loading) {
         return (
@@ -392,14 +414,9 @@ function WorkerDashboardPage() {
 
             <header>
                 <h1>Municipal Worker Dashboard</h1>
-
                 <div className="worker-info">
-                    <p>
-                        <strong>{profile?.full_name || user?.email || 'Worker'}</strong>
-                    </p>
-                    <p>
-                        {profile?.zone ? `Zone ${profile.zone}` : ''} • {profile?.role || 'Municipal Worker'}
-                    </p>
+                    <p><strong>{profile?.full_name || user?.email || 'Worker'}</strong></p>
+                    <p>{profile?.zone ? `Zone ${profile.zone}` : ''} • {profile?.role || 'Municipal Worker'}</p>
                 </div>
             </header>
 
@@ -407,42 +424,32 @@ function WorkerDashboardPage() {
 
             {/* Resolution image upload modal */}
             {imageUpload && (
-                <div className="resolution-upload-overlay">
-                    <div className="resolution-upload-modal">
+                <div className="modal-overlay">
+                    <div className="modal-content">
                         {imageUpload.uploaded ? (
                             <>
-                                <div className="upload-success-icon">✅</div>
+                                <div className="modal-icon-success">✓</div>
                                 <h3>Image Uploaded</h3>
                                 <p>The resolution photo has been saved to this request.</p>
                                 {imageUpload.previewUrl && (
-                                    <img
-                                        src={imageUpload.previewUrl}
-                                        alt="Uploaded resolution"
-                                        className="upload-preview uploaded"
-                                    />
+                                    <img src={imageUpload.previewUrl} alt="Uploaded resolution" className="modal-preview" />
                                 )}
-                                <button className="action-btn claim" onClick={handleDismissUpload}>
+                                <button className="modal-btn-primary" onClick={handleDismissUpload}>
                                     Done
                                 </button>
                             </>
                         ) : (
                             <>
-                                <h3>📸 Add Resolution Photo</h3>
-                                <p className="upload-subtitle">
-                                    Optionally attach a photo showing the resolved issue.
-                                </p>
+                                <h3>Add Resolution Photo</h3>
+                                <p className="modal-subtitle">Optionally attach a photo showing the resolved issue.</p>
 
                                 {imageUpload.previewUrl ? (
-                                    <img
-                                        src={imageUpload.previewUrl}
-                                        alt="Preview"
-                                        className="upload-preview"
-                                    />
+                                    <img src={imageUpload.previewUrl} alt="Preview" className="modal-preview" />
                                 ) : (
-                                    <label className="upload-dropzone" htmlFor="resolution-file-input">
-                                        <span className="upload-icon">🖼️</span>
+                                    <label className="modal-dropzone" htmlFor="resolution-file-input">
+                                        <span className="modal-dropzone-icon">📷</span>
                                         <span>Click to choose a photo</span>
-                                        <span className="upload-hint">JPG, PNG, WEBP · Max 10 MB</span>
+                                        <span className="modal-dropzone-hint">JPG, PNG, WEBP · Max 10 MB</span>
                                     </label>
                                 )}
 
@@ -456,14 +463,13 @@ function WorkerDashboardPage() {
                                 />
 
                                 {imageUpload.uploadError && (
-                                    <p className="upload-error">{imageUpload.uploadError}</p>
+                                    <p className="modal-error">{imageUpload.uploadError}</p>
                                 )}
 
-                                <div className="upload-actions">
+                                <div className="modal-actions">
                                     {imageUpload.file && !imageUpload.uploading && (
                                         <button
-                                            className="action-btn"
-                                            style={{ background: '#e9ecef', color: '#495057', border: '1px solid #ced4da' }}
+                                            className="modal-btn-secondary"
                                             onClick={() => {
                                                 URL.revokeObjectURL(imageUpload.previewUrl);
                                                 setImageUpload(prev => ({ ...prev, file: null, previewUrl: null }));
@@ -476,20 +482,15 @@ function WorkerDashboardPage() {
 
                                     {imageUpload.file && (
                                         <button
-                                            className="action-btn claim"
+                                            className="modal-btn-primary"
                                             onClick={handleImageUpload}
                                             disabled={imageUpload.uploading}
                                         >
-                                            {imageUpload.uploading ? 'Uploading…' : 'Upload Photo'}
+                                            {imageUpload.uploading ? 'Uploading...' : 'Upload Photo'}
                                         </button>
                                     )}
 
-                                    <button
-                                        className="action-btn"
-                                        style={{ background: 'none', color: '#6c757d', border: '1px solid #dee2e6' }}
-                                        onClick={handleDismissUpload}
-                                        disabled={imageUpload.uploading}
-                                    >
+                                    <button className="modal-btn-skip" onClick={handleDismissUpload}>
                                         Skip
                                     </button>
                                 </div>
@@ -498,6 +499,7 @@ function WorkerDashboardPage() {
                     </div>
                 </div>
             )}
+
             <section className="worker-stats" aria-label="Workload summary">
                 <dl className="stats-inline">
                     <div>
@@ -517,7 +519,7 @@ function WorkerDashboardPage() {
 
             {/* Assigned Section */}
             <section className="dashboard-section" aria-labelledby="assigned-heading">
-                <h2 id="assigned-heading">📌 Assigned to Me</h2>
+                <h2 id="assigned-heading">Assigned to Me</h2>
 
                 {assignedActive.length === 0 ? (
                     <p className="empty-state">No requests assigned to you.</p>
@@ -539,6 +541,7 @@ function WorkerDashboardPage() {
                                     <footer className="worker-actions">
                                         <StatusBadge status={req.status} />
 
+                                        {/* Show Start Progress for any status that is not Resolved or In Progress (e.g., Assigned) */}
                                         {req.status !== 'Resolved' && req.status !== 'In Progress' && (
                                             <button
                                                 className="action-btn progress"
@@ -566,7 +569,7 @@ function WorkerDashboardPage() {
 
             {/* New Unassigned Section */}
             <section className="dashboard-section" aria-labelledby="new-heading">
-                <h2 id="new-heading">🆕 New Requests Unassigned</h2>
+                <h2 id="new-heading">New Requests Unassigned</h2>
 
                 {newUnassigned.length === 0 ? (
                     <p className="empty-state">No new unassigned requests.</p>
@@ -604,7 +607,7 @@ function WorkerDashboardPage() {
 
             {/* Acknowledged Section */}
             <section className="dashboard-section" aria-labelledby="ack-heading">
-                <h2 id="ack-heading">📋 Acknowledged</h2>
+                <h2 id="ack-heading">Acknowledged</h2>
 
                 {ackUnassigned.length === 0 ? (
                     <p className="empty-state">No acknowledged unassigned requests.</p>
@@ -642,7 +645,7 @@ function WorkerDashboardPage() {
 
             {/* In Progress Section */}
             <section className="dashboard-section" aria-labelledby="prog-heading">
-                <h2 id="prog-heading">🛠 In Progress</h2>
+                <h2 id="prog-heading">In Progress</h2>
 
                 {progUnassigned.length === 0 ? (
                     <p className="empty-state">No in-progress unassigned requests.</p>
