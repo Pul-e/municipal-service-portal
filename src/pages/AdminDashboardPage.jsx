@@ -143,7 +143,7 @@ function AdminDashboardPage() {
       <header className="admin-header">
         <p className="admin-role-label">System Administrator · All Wards</p>
         <h1>
-          Admin <strong>Dashboard</strong>
+        <strong>Admin</strong> <strong>Dashboard</strong>
         </h1>
 
         <nav className="admin-filter-tabs" aria-label="Filter service requests by status">
