@@ -16,11 +16,21 @@ function ReportIssuePage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
+
+const isResolvedAndOld = (req) => {
+  if (req.status !== 'Resolved') return false;
+  if (!req.resolved_at) return false;
+  const resolvedDate = new Date(req.resolved_at);
+  const fiveDaysAgo = new Date();
+  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+  return resolvedDate < fiveDaysAgo;
+};
+
   useEffect(() => {
     const fetchExistingReports = async () => {
       const { data, error } = await supabase
         .from('service_requests')
-        .select('id, status, location_point')
+        .select('id, status, location_point, resolved_at')
         .not('location_point', 'is', null);
 
       if (error) {
@@ -28,7 +38,10 @@ function ReportIssuePage() {
         return;
       }
 
-      const markers = data
+      // Filter out resolved reports older than 3 days
+      const filteredData = data.filter(req => !isResolvedAndOld(req));
+
+      const markers = filteredData
         .map(req => {
           let lng, lat;
           if (typeof req.location_point === 'string') {
