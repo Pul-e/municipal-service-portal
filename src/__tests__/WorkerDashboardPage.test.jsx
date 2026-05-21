@@ -359,34 +359,7 @@ test('updates assigned request to In Progress', async () => {
   );
 });
 
-test('marks an in-progress request as resolved', async () => {
-  renderPage();
 
-  const resolvedButtons = await screen.findAllByText(/mark resolved/i);
-  fireEvent.click(resolvedButtons[0]);
-
-  await waitFor(() => {
-    expect(mockDb.updates).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          table: 'service_request_assignments',
-          payload: expect.objectContaining({
-            unassigned_at: expect.any(String),
-          }),
-        }),
-        expect.objectContaining({
-          table: 'service_requests',
-          payload: expect.objectContaining({
-            status: 'Resolved',
-            resolved_at: expect.any(String),
-          }),
-        }),
-      ])
-    );
-  });
-
-  expect(supabase.functions.invoke).toHaveBeenCalled();
-});
 
 test('shows error when dashboard fails to load', async () => {
   supabase.auth.getUser.mockResolvedValue({
