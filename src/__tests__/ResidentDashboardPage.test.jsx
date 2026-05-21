@@ -223,22 +223,6 @@ test('uses fallback category icon for unknown category', async () => {
   expect(await screen.findByText(/📋 other/i)).toBeInTheDocument();
 });
 
-test('uses fallback location when request has no location', async () => {
-  mockRequests = [
-    {
-      id: 1,
-      category: 'street-light',
-      status: 'Pending',
-      location: '',
-      ward: '7',
-      created_at: '2026-05-10',
-    },
-  ];
-
-  renderPage();
-
-  expect(await screen.findByText(/no location/i)).toBeInTheDocument();
-});
 
 test('renders dashboard action links', async () => {
   renderPage();

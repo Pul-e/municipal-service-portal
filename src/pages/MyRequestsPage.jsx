@@ -13,6 +13,7 @@ function timeAgo(dateStr) {
 
 function MyRequestsPage() {
   const navigate = useNavigate();
+
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -26,7 +27,18 @@ function MyRequestsPage() {
 
   useEffect(() => {
     async function fetchMyRequests() {
-      const { data: { user } } = await supabase.auth.getUser();
+      setLoading(true);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error('User error:', userError.message);
+        setLoading(false);
+        return;
+      }
 
       if (!user) {
         setLoading(false);
@@ -41,9 +53,38 @@ function MyRequestsPage() {
 
       if (error) {
         console.error('Error fetching requests:', error.message);
-      } else {
-        setRequests(data || []);
+        setLoading(false);
+        return;
       }
+
+      const requestIds = (data || []).map((req) => req.id);
+
+      if (requestIds.length === 0) {
+        setRequests([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from('feedback')
+        .select('request_id')
+        .eq('user_id', user.id)
+        .in('request_id', requestIds);
+
+      if (feedbackError) {
+        console.error('Error fetching feedback:', feedbackError.message);
+      }
+
+      const feedbackRequestIds = new Set(
+        (feedbackData || []).map((feedback) => feedback.request_id)
+      );
+
+      const requestsWithFeedback = (data || []).map((req) => ({
+        ...req,
+        feedback_submitted: feedbackRequestIds.has(req.id),
+      }));
+
+      setRequests(requestsWithFeedback);
       setLoading(false);
     }
 
@@ -55,21 +96,23 @@ function MyRequestsPage() {
     setFeedbackError('');
 
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
       if (userError) throw userError;
+
       if (!user) {
         throw new Error('You must be logged in to submit feedback');
       }
 
-      const { error: insertError } = await supabase
-        .from('feedback')
-        .insert({
-          request_id: requestId,
-          user_id: user.id,
-          rating: rating,
-          comment: comment,
-        });
+      const { error: insertError } = await supabase.from('feedback').insert({
+        request_id: requestId,
+        user_id: user.id,
+        rating,
+        comment,
+      });
 
       if (insertError) throw insertError;
 
@@ -78,15 +121,20 @@ function MyRequestsPage() {
       setRating(0);
       setComment('');
 
-      setRequests(requests.map(req =>
-        req.id === requestId ? { ...req, feedback_submitted: true } : req
-      ));
+      setRequests((prevRequests) =>
+        prevRequests.map((req) =>
+          req.id === requestId
+            ? { ...req, feedback_submitted: true }
+            : req
+        )
+      );
 
       setTimeout(() => setFeedbackSuccess(null), 3000);
-      
     } catch (err) {
       console.error('Feedback error details:', err);
-      setFeedbackError('Failed to submit feedback: ' + (err.message || 'Please try again'));
+      setFeedbackError(
+        'Failed to submit feedback: ' + (err.message || 'Please try again')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -106,12 +154,15 @@ function MyRequestsPage() {
     return true;
   });
 
-  const openCount = requests.filter(r => r.status !== 'Resolved').length;
-  const resolvedCount = requests.filter(r => r.status === 'Resolved').length;
+  const openCount = requests.filter((r) => r.status !== 'Resolved').length;
+  const resolvedCount = requests.filter((r) => r.status === 'Resolved').length;
 
   return (
     <article className="page-container">
-      <button className="back-btn" onClick={() => navigate('/resident/dashboard')}>
+      <button
+        className="back-btn"
+        onClick={() => navigate('/resident/dashboard')}
+      >
         ← Back to Dashboard
       </button>
 
@@ -135,6 +186,7 @@ function MyRequestsPage() {
               All Requests <span className="count">{requests.length}</span>
             </button>
           </li>
+
           <li role="presentation">
             <button
               role="tab"
@@ -146,12 +198,15 @@ function MyRequestsPage() {
               Open <span className="count">{openCount}</span>
             </button>
           </li>
+
           <li role="presentation">
             <button
               role="tab"
               aria-selected={activeFilter === 'resolved'}
               aria-controls="requests-panel"
-              className={`filter-tab ${activeFilter === 'resolved' ? 'active' : ''}`}
+              className={`filter-tab ${
+                activeFilter === 'resolved' ? 'active' : ''
+              }`}
               onClick={() => setActiveFilter('resolved')}
             >
               Resolved <span className="count">{resolvedCount}</span>
@@ -166,7 +221,9 @@ function MyRequestsPage() {
         aria-label={`${activeFilter} service requests`}
       >
         {loading ? (
-          <p className="loading-text" role="status">Loading your requests...</p>
+          <p className="loading-text" role="status">
+            Loading your requests...
+          </p>
         ) : filteredRequests.length > 0 ? (
           <ul className="requests-list" aria-label="Your service requests">
             {filteredRequests.map((request) => (
@@ -178,16 +235,20 @@ function MyRequestsPage() {
                   </header>
 
                   <address className="request-location">
-                    📍 {request.municipality && request.ward
-                          ? `${request.municipality}, Ward ${request.ward}`
-                          : (request.location || 'Location not specified')
-                        }
+                    📍{' '}
+                    {request.municipality && request.ward
+                      ? `${request.municipality}, Ward ${request.ward}`
+                      : request.location || 'Location not specified'}
                   </address>
 
                   <footer className="request-footer">
-                    <time dateTime={request.created_at} className="request-date">
+                    <time
+                      dateTime={request.created_at}
+                      className="request-date"
+                    >
                       📅 Reported {timeAgo(request.created_at)}
                     </time>
+
                     <div className="request-actions">
                       <button
                         className="view-details-btn"
@@ -197,18 +258,21 @@ function MyRequestsPage() {
                         View Details →
                       </button>
 
-                      {request.status === 'Resolved' && !request.feedback_submitted && (
-                        <button
-                          className="feedback-btn"
-                          onClick={() => openFeedback(request.id)}
-                          aria-label={`Leave feedback for ${request.category}`}
-                        >
-                          ⭐ Rate Service
-                        </button>
-                      )}
+                      {request.status === 'Resolved' &&
+                        !request.feedback_submitted && (
+                          <button
+                            className="feedback-btn"
+                            onClick={() => openFeedback(request.id)}
+                            aria-label={`Leave feedback for ${request.category}`}
+                          >
+                            ⭐ Rate Service
+                          </button>
+                        )}
 
                       {request.feedback_submitted && (
-                        <output className="feedback-submitted-badge">✅ Feedback Submitted</output>
+                        <output className="feedback-submitted-badge">
+                          ✅ Feedback Submitted
+                        </output>
                       )}
                     </div>
                   </footer>
@@ -216,18 +280,27 @@ function MyRequestsPage() {
                   {feedbackOpen === request.id && (
                     <fieldset className="feedback-form-container">
                       <legend>Rate Your Experience</legend>
+
                       <p className="feedback-request-info">
                         {request.category} at {request.location}
                       </p>
 
-                      <div className="star-rating" role="radiogroup" aria-label="Rate your experience">
+                      <div
+                        className="star-rating"
+                        role="radiogroup"
+                        aria-label="Rate your experience"
+                      >
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
                             key={star}
                             type="button"
-                            className={`star-btn ${star <= rating ? 'active' : ''}`}
+                            className={`star-btn ${
+                              star <= rating ? 'active' : ''
+                            }`}
                             onClick={() => setRating(star)}
-                            aria-label={`${star} star${star !== 1 ? 's' : ''}`}
+                            aria-label={`${star} star${
+                              star !== 1 ? 's' : ''
+                            }`}
                           >
                             {star <= rating ? '⭐' : '☆'}
                           </button>
@@ -235,7 +308,10 @@ function MyRequestsPage() {
                       </div>
 
                       <div className="form-group">
-                        <label htmlFor={`comment-${request.id}`}>Additional Comments (Optional)</label>
+                        <label htmlFor={`comment-${request.id}`}>
+                          Additional Comments (Optional)
+                        </label>
+
                         <textarea
                           id={`comment-${request.id}`}
                           value={comment}
@@ -246,7 +322,9 @@ function MyRequestsPage() {
                       </div>
 
                       {feedbackError && (
-                        <p className="feedback-error" role="alert">{feedbackError}</p>
+                        <p className="feedback-error" role="alert">
+                          {feedbackError}
+                        </p>
                       )}
 
                       <div className="feedback-actions">
@@ -257,6 +335,7 @@ function MyRequestsPage() {
                         >
                           {submitting ? 'Submitting...' : 'Submit Feedback'}
                         </button>
+
                         <button
                           className="cancel-feedback-btn"
                           onClick={() => setFeedbackOpen(null)}

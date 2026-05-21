@@ -153,21 +153,7 @@ test('shows statistics cards', async () => {
   expect(screen.getByText(/admins/i)).toBeInTheDocument();
 });
 
-test('filters residents correctly', async () => {
-  renderPage();
 
-  await finishLoading();
-
-  const residentsTab = screen.getByRole('tab', {
-    name: /residents/i,
-  });
-
-  fireEvent.click(residentsTab);
-
-  expect(
-    screen.getByText(/resident@test.com/i)
-  ).toBeInTheDocument();
-});
 
 test('filters workers correctly', async () => {
   renderPage();

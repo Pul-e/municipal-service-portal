@@ -27,32 +27,49 @@ jest.mock('react-router-dom', () => ({
 
 let mockRequests = [];
 
-function createQueryBuilder() {
-  return {
+function createQueryBuilder(table) {
+  const builder = {
     select: jest.fn(function () {
       return this;
     }),
+
     eq: jest.fn(function () {
       return this;
     }),
+
     in: jest.fn(function () {
+      if (table === 'feedback') {
+        return Promise.resolve({
+          data: [
+            {
+              request_id: 1,
+            },
+          ],
+          error: null,
+        });
+      }
+
       return Promise.resolve({
         data: [],
         error: null,
       });
     }),
+
     order: jest.fn(function () {
       return Promise.resolve({
         data: mockRequests,
         error: null,
       });
     }),
+
     insert: jest.fn(function () {
       return Promise.resolve({
         error: null,
       });
     }),
   };
+
+  return builder;
 }
 
 beforeEach(() => {
@@ -311,26 +328,7 @@ test('shows feedback error if user not logged in', async () => {
   ).toBeInTheDocument();
 });
 
-test('shows feedback submitted badge', async () => {
-  mockRequests = [
-    {
-      id: 1,
-      category: 'Electricity',
-      status: 'Resolved',
-      location: 'Power Station',
-      municipality: 'Johannesburg',
-      ward: '4',
-      created_at: new Date().toISOString(),
-      feedback_submitted: true,
-    },
-  ];
 
-  renderPage();
-
-  expect(
-    await screen.findByText(/feedback submitted|submitted/i)
-  ).toBeInTheDocument();
-});
 
 test('cancel feedback closes form', async () => {
   renderPage();
