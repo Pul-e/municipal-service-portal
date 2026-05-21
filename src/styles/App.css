@@ -2469,4 +2469,9 @@ textarea:focus-visible {
     padding-left: 1rem;
     padding-right: 1rem;
   }
+
+  /* MAP SECTION SPECIFIC */
+.map-section-large {
+  margin-top: 1.5rem;
+}
 }
