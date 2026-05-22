@@ -27,7 +27,7 @@ This project was developed as part of a Software Design course, following Agile 
 | Authentication | Supabase Auth (Email/Password + Google OAuth) |
 | Geospatial | PostGIS |
 | CI/CD | GitHub Actions |
-| Deployment | Azure |
+| Deployment | Vercel |
 
 ---
 
