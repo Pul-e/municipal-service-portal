@@ -252,7 +252,7 @@ Course: Software Design 2026 – School of Computer Science and Applied Mathemat
 4. **Supabase** – Backend infrastructure
 5. **React Leaflet** – React wrapper for Leaflet
 6. **GitHub Actions** – CI/CD pipeline
-7. **Microsoft Azure** – Hosting
+7. **Vercel** – Hosting
 
 ## License
 
