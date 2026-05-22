@@ -24,18 +24,22 @@ jest.mock('react-router-dom', () => ({
 }));
 
 jest.mock('../components/InteractiveMap', () => {
-  return function MockInteractiveMap({ onLocationSelect }) {
+  return function MockInteractiveMap({ onLocationSelect, markers = [] }) {
     return (
-      <button
-        onClick={() =>
-          onLocationSelect({
-            lat: -26.2041,
-            lng: 28.0473,
-          })
-        }
-      >
-        Select Mock Location
-      </button>
+      <div>
+        <button
+          onClick={() =>
+            onLocationSelect({
+              lat: -26.2041,
+              lng: 28.0473,
+            })
+          }
+        >
+          Select Mock Location
+        </button>
+
+        <p data-testid="marker-count">{markers.length}</p>
+      </div>
     );
   };
 });
@@ -439,4 +443,187 @@ test('boundary test: image exactly 5MB accepted', async () => {
   });
 
   expect(await screen.findByAltText(/preview/i)).toBeInTheDocument();
+});
+
+test('shows no ward found when selected location has no ward match', async () => {
+  supabase.rpc.mockResolvedValue({
+    data: [],
+    error: null,
+  });
+
+  renderPage();
+
+  fireEvent.click(screen.getByText(/select mock location/i));
+
+  expect(
+    await screen.findByText(/no ward found/i)
+  ).toBeInTheDocument();
+});
+
+test('handles ward lookup failure without crashing', async () => {
+  supabase.rpc.mockRejectedValue(new Error('RPC failed'));
+
+  renderPage();
+
+  fireEvent.click(screen.getByText(/select mock location/i));
+
+  expect(
+    await screen.findByText(/no ward found/i)
+  ).toBeInTheDocument();
+});
+
+test('removes selected image preview when remove button is clicked', async () => {
+  renderPage();
+
+  const file = new File(['image'], 'photo.png', {
+    type: 'image/png',
+  });
+
+  Object.defineProperty(file, 'size', {
+    value: 1000,
+  });
+
+  fireEvent.change(screen.getByLabelText(/upload photo/i), {
+    target: {
+      files: [file],
+    },
+  });
+
+  expect(await screen.findByAltText(/preview/i)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /remove/i }));
+
+  expect(screen.queryByAltText(/preview/i)).not.toBeInTheDocument();
+});
+
+test('continues submitting report when image upload fails', async () => {
+  supabase.storage.from.mockReturnValue({
+    upload: jest.fn().mockResolvedValue({
+      error: {
+        message: 'Upload failed',
+      },
+    }),
+    getPublicUrl: jest.fn(),
+  });
+
+  renderPage();
+
+  const file = new File(['image'], 'photo.png', {
+    type: 'image/png',
+  });
+
+  Object.defineProperty(file, 'size', {
+    value: 1000,
+  });
+
+  fireEvent.change(screen.getByLabelText(/upload photo/i), {
+    target: {
+      files: [file],
+    },
+  });
+
+  expect(await screen.findByAltText(/preview/i)).toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText(/issue category/i), {
+    target: { value: 'pothole' },
+  });
+
+  fireEvent.change(screen.getByLabelText(/description/i), {
+    target: { value: 'Large pothole near the school entrance' },
+  });
+
+  fireEvent.click(screen.getByText(/select mock location/i));
+
+  fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
+
+  await waitFor(() => {
+    expect(global.alert).toHaveBeenCalledWith(
+      'Report submitted successfully!'
+    );
+  });
+});
+
+test('displays existing unresolved report markers on the map', async () => {
+  supabase.from.mockImplementation(() => ({
+    select: jest.fn(function () {
+      return this;
+    }),
+
+    not: jest.fn(function () {
+      return Promise.resolve({
+        data: [
+          {
+            id: 1,
+            status: 'Pending',
+            location_point: 'POINT(28.0473 -26.2041)',
+            resolved_at: null,
+          },
+          {
+            id: 2,
+            status: 'Resolved',
+            location_point: 'POINT(28.1000 -26.3000)',
+            resolved_at: new Date().toISOString(),
+          },
+        ],
+        error: null,
+      });
+    }),
+
+    insert: jest.fn(function () {
+      return Promise.resolve({
+        error: null,
+      });
+    }),
+  }));
+
+  renderPage();
+
+await waitFor(() => {
+  expect(screen.getByTestId('marker-count')).toHaveTextContent('2');
+});
+});
+
+test('filters out resolved reports older than five days from map markers', async () => {
+  const oldDate = new Date();
+  oldDate.setDate(oldDate.getDate() - 6);
+
+  supabase.from.mockImplementation(() => ({
+    select: jest.fn(function () {
+      return this;
+    }),
+
+    not: jest.fn(function () {
+      return Promise.resolve({
+        data: [
+          {
+            id: 1,
+            status: 'Resolved',
+            location_point: 'POINT(28.0473 -26.2041)',
+            resolved_at: oldDate.toISOString(),
+          },
+          {
+            id: 2,
+            status: 'Pending',
+            location_point: {
+              coordinates: [28.1000, -26.3000],
+            },
+            resolved_at: null,
+          },
+        ],
+        error: null,
+      });
+    }),
+
+    insert: jest.fn(function () {
+      return Promise.resolve({
+        error: null,
+      });
+    }),
+  }));
+
+  renderPage();
+
+  await waitFor(() => {
+    expect(screen.getByTestId('marker-count')).toHaveTextContent('1');
+  });
 });
