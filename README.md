@@ -242,6 +242,7 @@ This limitation exists because the project does not yet use a verified custom se
 1. **Siyolise Dlani** – Backend Developer (Authentication, Maps, Ward Integration, Admin/Worker Dashboards)
 2. **Zidan Fajandar** – Tester/Backend Developer (Testing Strategy, Unit & Integration Tests, Code Coverage, Feedback Workflow, Email Notification Integration, CI/CD Support
 3. **Nelcials Joseph** - Frontend Developer
+4. **Ahmed Surtee** - Database design, SQL queries, Supabase tables, and data management.
 
 Course: Software Design 2026 – School of Computer Science and Applied Mathematics
 
